@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 SkyBrain Architecture & Documentation
+    url: https://github.com/cobuild-ai/skybrain/blob/main/ARCHITECTURE.md
+    about: Read our Architecture, Zero-Config Serving, and Model Catalog guides before opening an issue.
+  - name: 🛡️ Report a Security Vulnerability
+    url: https://github.com/cobuild-ai/skybrain/security/policy
+    about: Please report security vulnerabilities responsibly via our Security Policy.

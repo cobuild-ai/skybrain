@@ -1,0 +1,50 @@
+name: 💡 Feature Request & Model Integration
+description: Propose a new feature, architecture improvement, or new model support for SkyBrain
+title: "[FEAT]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping us make SkyBrain better! Please describe your proposed enhancement clearly.
+  - type: textarea
+    id: problem
+    attributes:
+      label: 🎯 Problem or Motivation
+      description: Is your feature request related to a missing model, slow latency, or specific framework integration?
+      placeholder: I would like to use SkyBrain with...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 🚀 Proposed Solution & Expected Behavior
+      description: Describe the feature, endpoint, or architecture improvement you would like to see.
+      placeholder: Add support for MLX-based embeddings endpoint /v1/embeddings...
+    validations:
+      required: true
+  - type: dropdown
+    id: target-module
+    attributes:
+      label: 🧩 Target Module
+      options:
+        - "Core Engine & Model Catalog (`skybrain/engine/`)"
+        - "OpenAI REST API Server (`skybrain/server/`)"
+        - "Supervisor & Process Lifecycle (`skybrain/server/supervisor.py`)"
+        - "Journal Indexer Submodule (`skybrain/journal/`)"
+        - "CLI & Developer Tools (`skybrain/cli/`)"
+        - "CI/CD & Testing Suite (`tests/`)"
+        - "Other / Architecture"
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternative Solutions Considered
+      description: Have you considered any alternative approaches or workarounds?
+  - type: checkboxes
+    id: contributor
+    attributes:
+      label: 🤝 Willingness to Contribute
+      options:
+        - label: I would be willing to submit a Pull Request to implement this feature!
