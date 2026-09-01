@@ -6,7 +6,7 @@
     <string>com.skybrain.daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/smilelife/Projects/SkyBrain/.venv/bin/uvicorn</string>
+        <string>{{UVICORN_PATH}}</string>
         <string>skybrain.server.app:app</string>
         <string>--host</string>
         <string>127.0.0.1</string>
@@ -14,19 +14,19 @@
         <string>8000</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/smilelife/Projects/SkyBrain</string>
+    <string>{{WORKING_DIR}}</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/smilelife/.skybrain/skybrain.log</string>
+    <string>{{LOG_PATH}}</string>
     <key>StandardErrorPath</key>
-    <string>/Users/smilelife/.skybrain/skybrain.log</string>
+    <string>{{LOG_PATH}}</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/smilelife/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>{{PATH_ENV}}</string>
     </dict>
 </dict>
 </plist>
