@@ -15,7 +15,9 @@
   * `Gemma 2 2B Instruct` (초경량 베이스라인)
   * `Qwen 2.5 / Phi-4 / Llama 3` 등 필요에 따라 즉시 확장 가능
 * **⚡ 제로 컨피그 자동 프로비저닝 (Zero-Config Auto-Provisioning):** 모델이 없어도 번거로운 수동 다운로드 없이, `skybrain start` 또는 `scripts/daemon.sh start`만 실행하면 누락된 가중치(~Gemma 4 E4B)를 스스로 다운로드하고 즉시 서빙합니다.
-* **📖 내장 저널 인덱서 (`skybrain.journal`):** 개발 일지 마크다운을 100% 온디바이스로 스캔하여 무손실 `.gz` 백업 및 GitHub 대시보드를 자동 생성합니다.
+* **🧪 내장 저널 인덱서 (`skybrain.journal`):** (Experimental / In Active Development)
+  * 일지 무손실 SHA-256 스마트 백업 및 마크다운 자동 인덱싱 서브모듈 탑재
+  * *온디바이스 SLM과 연계한 시맨틱 검색 및 저널 RAG 지식베이스 확장 진행 중*
 
 ---
 
@@ -53,12 +55,23 @@ skybrain stop
 
 ---
 
-## 📖 저널 인덱서 서브모듈 (`skybrain.journal`)
+## 🧪 저널 인덱서 서브모듈 (`skybrain.journal`) [Experimental]
+
+> ⚠️ **Notice**: `skybrain.journal` 서브모듈은 현재 **실험적(Experimental) 개발 단계**입니다.  
+> 마크다운 문서의 무손실 SHA-256 스마트 백업 및 기본 인덱서 파서가 탑재되어 있으며, 온디바이스 SLM과의 심층 지식 연동 기능이 순차적으로 고도화되고 있습니다.
+
+### 📌 현재 지원 기능 (Current Capabilities)
+* **스마트 SHA-256 중복 제거 백업**: 내용이 변경된 파일만 타임스탬프 기반 `.gz` 아카이브로 안전하게 압축 보존
+* **마크다운 인덱싱**: 작업일지 헤더 및 구조를 파싱하여 인덱스 문서 자동 생성
 
 ```bash
 # 일지 인덱싱 및 무손실 .gz 백업 실행
 python3 -m skybrain.journal.cli index --source ../../Journal/2026 --output ../../Journal/README.md
 ```
+
+### 🗺️ 향후 개발 로드맵 (Upcoming Roadmap)
+- [ ] Gemma 4 온디바이스 모델을 활용한 주간/월간 일지 자율 요약 엔진 연동
+- [ ] Obsidian Vault 로컬 시맨틱 검색 및 RAG 지식베이스 쿼리 CLI 지원
 
 ---
 
