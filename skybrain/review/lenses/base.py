@@ -64,28 +64,18 @@ class ReviewLens(ABC):
     def system_prompt(self) -> str:
         """Expert persona and analysis framework prompt."""
 
-    def analyze(
-        self, code: str, file_path: str, prior_context: str = ""
-    ) -> LensResult:
-        """Run this lens against the given source code.
+    def analyze(self, code: str, file_path: str) -> LensResult:
+        """Run this lens against the given source code in strict blind isolation.
 
-        Args:
-            code: The source code to analyze.
-            file_path: Path to the file being analyzed.
-            prior_context: Optional summary of findings from prior lenses
-                           in this session. Injected into the prompt to
-                           enable cross-lens awareness and avoid duplicates.
+        Each lens evaluates the code independently using only its own domain criteria
+        and the raw source code. Cross-lens findings are NEVER injected here to prevent
+        confirmation bias and consensus contamination.
 
         Returns a LensResult with parsed findings and timing metadata.
         """
-        context_block = ""
-        if prior_context:
-            context_block = f"\n{prior_context}\n\n"
-
         user_prompt = (
             f"Review the following source code from `{file_path}`.\n"
-            f"{STRUCTURED_OUTPUT_INSTRUCTION}"
-            f"{context_block}\n\n"
+            f"{STRUCTURED_OUTPUT_INSTRUCTION}\n\n"
             f"```python\n{code}\n```"
         )
 
