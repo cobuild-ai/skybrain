@@ -10,13 +10,32 @@ from skybrain.core.config import settings
 logger = logging.getLogger("skybrain.catalog")
 
 MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
+    "qwen3.8": {
+        "name": "Qwen 3.8 4B Instruct",
+        "filename": "Qwen3.8-4B-Q4_K_M.gguf",
+        "url": "https://huggingface.co/empero-ai/Qwen3.8-4B-GGUF/resolve/main/Qwen3.8-4B-Q4_K_M.gguf",
+        "description": "Alibaba Qwen 3.8 4B (Thinking Mode, Ultra-Fast M1 Optimized, ~2.65GB)",
+        "context_length": 32768,
+        "is_vision": False,
+        "default": True,
+    },
+    "qwen3.8-9b": {
+        "name": "Qwen 3.8 9B Distill Instruct",
+        "filename": "Qwen3.8-9B-Q4_K_M.gguf",
+        "url": "https://huggingface.co/empero-ai/Qwen3.8-9B-Distill-GGUF/resolve/main/Qwen3.8-9B-Q4_K_M.gguf",
+        "description": "Alibaba Qwen 3.8 9B Distill (Advanced Reasoning & Deep Logic, ~5.51GB)",
+        "context_length": 32768,
+        "is_vision": False,
+        "default": False,
+    },
     "gemma-4-e4b": {
         "name": "Gemma 4 E4B Instruct",
         "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
         "url": "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
         "description": "Google Gemma 4 E4B (128k Context, Thinking Mode, Native System Role, ~4.7GB)",
         "context_length": 131072,
-        "default": True,
+        "is_vision": False,
+        "default": False,
     },
     "gemma-2-2b": {
         "name": "Gemma 2 2B Instruct",
@@ -24,11 +43,12 @@ MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
         "url": "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf",
         "description": "Google Gemma 2 2B (8k Context, Ultra Light Baseline, ~1.63GB)",
         "context_length": 8192,
+        "is_vision": False,
         "default": False,
     }
 }
 
-DEFAULT_PRESET_KEY = "gemma-4-e4b"
+DEFAULT_PRESET_KEY = "qwen3.8"
 MIN_VALID_MODEL_SIZE = 100 * 1024 * 1024  # 100MB
 
 
@@ -73,12 +93,26 @@ class ModelCatalog:
         preset = MODEL_PRESETS.get(target_key, MODEL_PRESETS[DEFAULT_PRESET_KEY])
         return self.models_dir / preset["filename"]
 
+    def get_mmproj_path(self, key: Optional[str] = None) -> Optional[Path]:
+        """Returns the vision mmproj file path if model preset has vision support."""
+        target_key = key or self.get_active_key()
+        preset = MODEL_PRESETS.get(target_key, MODEL_PRESETS[DEFAULT_PRESET_KEY])
+        if preset.get("mmproj_filename"):
+            return self.models_dir / preset["mmproj_filename"]
+        return None
+
     def is_installed(self, key: Optional[str] = None) -> bool:
-        """Checks if given or active model exists and exceeds minimum size."""
-        path = self.get_model_path(key)
-        if not path.exists():
+        """Checks if given or active model (and required mmproj) exists and exceeds minimum size."""
+        target_key = key or self.get_active_key()
+        preset = MODEL_PRESETS.get(target_key, MODEL_PRESETS[DEFAULT_PRESET_KEY])
+        path = self.get_model_path(target_key)
+        if not path.exists() or path.stat().st_size < MIN_VALID_MODEL_SIZE:
             return False
-        return path.stat().st_size >= MIN_VALID_MODEL_SIZE
+        if preset.get("mmproj_filename"):
+            mm_path = self.get_mmproj_path(target_key)
+            if not mm_path or not mm_path.exists() or mm_path.stat().st_size < (50 * 1024 * 1024):
+                return False
+        return True
 
     def list_models(self) -> List[Dict[str, Any]]:
         """Returns all presets with current installation and active state."""
@@ -86,12 +120,19 @@ class ModelCatalog:
         results = []
         for key, p in MODEL_PRESETS.items():
             path = self.models_dir / p["filename"]
-            installed = path.exists() and path.stat().st_size >= MIN_VALID_MODEL_SIZE
-            size_mb = (path.stat().st_size / (1024 * 1024)) if path.exists() else 0.0
+            installed = self.is_installed(key)
+            size_bytes = path.stat().st_size if path.exists() else 0
+            if p.get("mmproj_filename"):
+                mm_p = self.models_dir / p["mmproj_filename"]
+                if mm_p.exists():
+                    size_bytes += mm_p.stat().st_size
+            size_mb = (size_bytes / (1024 * 1024)) if size_bytes > 0 else 0.0
             results.append({
                 "key": key,
                 "name": p["name"],
                 "filename": p["filename"],
+                "mmproj_filename": p.get("mmproj_filename"),
+                "is_vision": p.get("is_vision", False),
                 "installed": installed,
                 "active": (key == active),
                 "size_mb": round(size_mb, 2),
@@ -102,31 +143,40 @@ class ModelCatalog:
         return results
 
     def download(self, key: Optional[str] = None, progress_callback: Optional[Callable[[int, int], None]] = None) -> Path:
-        """Downloads model file with atomic rename."""
+        """Downloads model file and vision projector (if applicable) with atomic rename."""
         target_key = key or self.get_active_key()
         preset = MODEL_PRESETS.get(target_key, MODEL_PRESETS[DEFAULT_PRESET_KEY])
         target_path = self.get_model_path(target_key)
         temp_path = target_path.with_suffix(".download.tmp")
 
-        logger.info(f"🚀 Downloading {preset['name']} from {preset['url']}")
-        req = urllib.request.Request(preset["url"], headers={"User-Agent": "SkyBrain-Daemon/0.1.0"})
+        def _download_url(url: str, dest_temp: Path, dest_final: Path, desc: str):
+            logger.info(f"🚀 Downloading {desc} from {url}")
+            req = urllib.request.Request(url, headers={"User-Agent": "SkyBrain-Daemon/0.1.0"})
+            with urllib.request.urlopen(req) as response:
+                total_size = int(response.headers.get("content-length", 0))
+                downloaded = 0
+                block_size = 1024 * 1024  # 1MB
+                with open(dest_temp, "wb") as f:
+                    while True:
+                        chunk = response.read(block_size)
+                        if not chunk:
+                            break
+                        downloaded += len(chunk)
+                        f.write(chunk)
+                        if progress_callback and total_size > 0:
+                            progress_callback(downloaded, total_size)
+            shutil.move(dest_temp, dest_final)
 
-        with urllib.request.urlopen(req) as response:
-            total_size = int(response.headers.get("content-length", 0))
-            downloaded = 0
-            block_size = 1024 * 1024  # 1MB
+        # 1. Download main LLM weights
+        _download_url(preset["url"], temp_path, target_path, preset["name"])
 
-            with open(temp_path, "wb") as f:
-                while True:
-                    chunk = response.read(block_size)
-                    if not chunk:
-                        break
-                    downloaded += len(chunk)
-                    f.write(chunk)
-                    if progress_callback and total_size > 0:
-                        progress_callback(downloaded, total_size)
+        # 2. Download mmproj if vision model
+        if preset.get("mmproj_url") and preset.get("mmproj_filename"):
+            mm_target = self.get_mmproj_path(target_key)
+            if mm_target:
+                mm_temp = mm_target.with_suffix(".download.tmp")
+                _download_url(preset["mmproj_url"], mm_temp, mm_target, f"{preset['name']} Vision Projector")
 
-        shutil.move(temp_path, target_path)
         self.set_active_key(target_key)
         logger.info(f"✅ Download complete: {target_path}")
         return target_path
@@ -138,4 +188,5 @@ class ModelCatalog:
             logger.info(f"Model '{target_key}' not found locally. Auto-downloading...")
             return self.download(target_key, progress_callback=progress_callback)
         return self.get_model_path(target_key)
+
 

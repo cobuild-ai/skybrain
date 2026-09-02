@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "skybrain": {
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["-m", "skybrain.mcp"]
+    }
+  }
+}

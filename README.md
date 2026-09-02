@@ -23,6 +23,32 @@
 
 ## 📦 빠른 시작 (Zero-Config Quick Start)
 
+### 🚀 외부 개발자를 위한 원터치 셋업 (VS Code / Cursor / MCP 지원)
+리포지토리를 클론한 뒤 `setup.sh`를 실행하면 가상환경 생성, 의존성 설치, 56개 단위 테스트 검증, **VS Code / Cursor MCP 설정(`.vscode/mcp.json`)**까지 원클릭으로 완료됩니다:
+```bash
+git clone https://github.com/cobuild-ai/skybrain.git
+cd skybrain
+./setup.sh
+```
+
+---
+
+### 💻 VS Code / Cursor / Cline에서 Antigravity처럼 쓰기 (MCP)
+`setup.sh` 실행 시 `.vscode/mcp.json`이 자동 생성되어, VS Code의 **Cline, Roo Code, Cursor, Claude Desktop**에서 SkyBrain을 도구(Tool)로 즉시 인식합니다:
+
+* **사용 가능한 MCP 도구**:
+  * 🔍 `skybrain_expert_consensus`: 6대 전문 렌즈(Clean Code, Architecture, Test, Patterns, Security, Perf) 기반 **2/3 다수결 합의 코드 감사**
+  * ⚡ `skybrain_query`: 로컬 Qwen 3.8 Metal 가속 초고속 제로토큰 추론 ($0 Token)
+  * 🌐 `skybrain_translate`: 12개 언어 실시간 동시통역
+  * 📝 `skybrain_summarize_logs`: 50줄 이상의 대용량 런타임/빌드 로그 로컬 요약
+
+* **VS Code 태스크 (Ctrl+Shift+B / Cmd+Shift+P ➔ Tasks: Run Task)**:
+  * `SkyBrain: Start Server (Daemon)`: 백그라운드 AI 서빙 데몬 시작
+  * `SkyBrain: Run Expert 2/3 Consensus on Active File`: 현재 열린 파일 2/3 합의 심사 실행
+  * `SkyBrain: Run Pytest (56 Tests)`: 전체 단위 테스트 검증
+
+---
+
 ### 🚀 초간편 원클릭 실행 (데몬 기동)
 사전 설정이나 모델 다운로드에 대한 고민 없이 루트에서 스크립트 하나로 가상환경 구성, 모델 자동 다운로드, 백그라운드 데몬 기동까지 한 번에 완료됩니다.
 ```bash
