@@ -2,7 +2,7 @@ import json
 import time
 import logging
 import threading
-from typing import List, Optional, Dict, Any, Generator
+from typing import List, Optional, Dict, Any, Generator, Union
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -30,11 +30,23 @@ def get_llm(force_reload: bool = False):
         )
     
     model_path = str(_catalog.get_model_path())
+    mmproj_path = _catalog.get_mmproj_path()
+
     try:
         from llama_cpp import Llama
-        logger.info(f"⚡ Loading Metal LLM: {model_path}")
+        chat_handler = None
+        if mmproj_path and mmproj_path.exists():
+            try:
+                from llama_cpp.llama_chat_format import Qwen25VLChatHandler
+                logger.info(f"📸 Initializing Qwen2.5 Vision Projector: {mmproj_path}")
+                chat_handler = Qwen25VLChatHandler(clip_model_path=str(mmproj_path))
+            except Exception as v_err:
+                logger.warning(f"⚠️ Failed to load Qwen Vision handler ({v_err}), falling back to standard LLM.")
+
+        logger.info(f"⚡ Loading Metal LLM: {model_path} (Vision: {chat_handler is not None})")
         _llm_instance = Llama(
             model_path=model_path,
+            chat_handler=chat_handler,
             n_gpu_layers=settings.n_gpu_layers,
             n_ctx=settings.n_ctx,
             n_threads=settings.n_threads,
@@ -49,7 +61,7 @@ def get_llm(force_reload: bool = False):
 
 class ChatMessage(BaseModel):
     role: str
-    content: str
+    content: Union[str, List[Any]]
 
 
 class ChatCompletionRequest(BaseModel):

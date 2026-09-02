@@ -17,7 +17,7 @@ class SkyBrainSettings(BaseSettings):
     
     # Hardware & Performance
     n_gpu_layers: int = -1  # Offload all layers to Apple Silicon Metal GPU
-    n_ctx: int = 4096
+    n_ctx: int = 16384
     n_threads: int = 8
 
     # Auto-Provisioning

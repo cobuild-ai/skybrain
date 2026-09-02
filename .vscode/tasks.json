@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SkyBrain: Start Server (Daemon)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/skybrain",
+      "args": ["start"],
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "SkyBrain: Stop Server",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/skybrain",
+      "args": ["stop"],
+      "problemMatcher": []
+    },
+    {
+      "label": "SkyBrain: Status",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/skybrain",
+      "args": ["status"],
+      "problemMatcher": []
+    },
+    {
+      "label": "SkyBrain: Run Expert 2/3 Consensus on Active File",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": [
+        "scripts/skybrain_expert.py",
+        "--target",
+        "${file}",
+        "--rounds",
+        "3"
+      ],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "SkyBrain: Run Pytest (56 Tests)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["-m", "pytest", "tests/", "-v"],
+      "problemMatcher": [],
+      "group": "test"
+    }
+  ]
+}
