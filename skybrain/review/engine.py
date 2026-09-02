@@ -1,7 +1,7 @@
 """ReviewEngine — Use Case Orchestrator.
 
 Central coordinator that drives the multi-pass review pipeline:
-  Lenses → Verification → Aggregation → Report
+  Cache Check → Lenses → Verification → Aggregation → Report
 
 Follows Clean Architecture: this layer depends only on domain models
 and abstractions (ReviewLens, SkyBrainClient), never on frameworks.
@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Sequence, Type
 
 from skybrain.review.aggregator import FindingAggregator
+from skybrain.review.cache import ResultCache, SessionContext
 from skybrain.review.client import SkyBrainClient
 from skybrain.review.lenses.base import ReviewLens
 from skybrain.review.models import AggregatedReport, Finding, LensResult
@@ -28,7 +29,13 @@ class ReviewEngine:
     Architecture (Dependency Injection):
       - Lenses are injected at construction, not hardcoded
       - Client is shared across lenses and verifier
-      - Aggregator and verifier are pluggable
+      - Cache, aggregator, and verifier are all pluggable
+
+    Two-tier caching:
+      - Tier 1 (ResultCache): Disk-persistent, content-addressable.
+        Skips LLM calls entirely if file hasn't changed.
+      - Tier 2 (SessionContext): In-memory, per-session.
+        Shares prior findings with subsequent lenses for context.
 
     This design allows:
       - Adding new lenses without modifying the engine
@@ -42,17 +49,21 @@ class ReviewEngine:
         client: Optional[SkyBrainClient] = None,
         verifier: Optional[ChainOfVerifier] = None,
         aggregator: Optional[FindingAggregator] = None,
+        cache: Optional[ResultCache] = None,
     ) -> None:
         self._client = client or SkyBrainClient()
         self._lenses = [cls(client=self._client) for cls in lens_classes]
         self._verifier = verifier or ChainOfVerifier(client=self._client)
         self._aggregator = aggregator or FindingAggregator()
+        self._cache = cache or ResultCache()
 
     def review(
         self,
         file_paths: Sequence[str | Path],
         verify: bool = True,
         voting_rounds: int = 1,
+        use_cache: bool = True,
+        share_context: bool = True,
     ) -> AggregatedReport:
         """Execute the full multi-pass review pipeline.
 
@@ -61,11 +72,17 @@ class ReviewEngine:
             verify: If True, run Chain-of-Verification on findings.
             voting_rounds: Number of Self-Consistency rounds per lens.
                            Findings appearing in ≥50% of rounds survive.
+            use_cache: If True, use disk cache to skip unchanged files.
+            share_context: If True, share prior lens findings with
+                           subsequent lenses via session context.
 
         Returns:
             AggregatedReport with all findings, stats, and metadata.
         """
         all_results: list[LensResult] = []
+        session = SessionContext()
+        cache_hits = 0
+        cache_misses = 0
 
         for path in file_paths:
             file_path = Path(path)
@@ -80,36 +97,80 @@ class ReviewEngine:
 
             logger.info("📄 Reviewing: %s", file_path)
 
+            # Store file metadata in session for cross-lens awareness
+            session.add_file_metadata(
+                str(file_path),
+                {
+                    "line_count": source_code.count("\n") + 1,
+                    "size_bytes": len(source_code.encode("utf-8")),
+                },
+            )
+
             for lens in self._lenses:
                 logger.info("  🔍 Lens: %s", lens.name)
 
-                if voting_rounds > 1:
-                    result = self._run_with_voting(
-                        lens, source_code, str(file_path), voting_rounds
-                    )
-                else:
-                    result = lens.analyze(source_code, str(file_path))
+                # ── Tier 1: Disk Cache Check ──
+                cached_result = None
+                if use_cache and self._cache.enabled and voting_rounds <= 1:
+                    cached_result = self._cache.get(source_code, lens.name)
 
-                # Chain-of-Verification pass
-                if verify and result.findings:
-                    logger.info(
-                        "  🔗 Verifying %d findings...",
-                        len(result.findings),
-                    )
-                    result.findings = self._verifier.verify_findings(
-                        result.findings, source_code, str(file_path)
-                    )
+                if cached_result is not None:
+                    cache_hits += 1
+                    result = cached_result
+                else:
+                    cache_misses += 1
+
+                    # ── Tier 2: Session Context Injection ──
+                    context_summary = ""
+                    if share_context:
+                        context_summary = session.get_context_summary(
+                            exclude_lens=lens.name
+                        )
+
+                    # Run lens analysis
+                    if voting_rounds > 1:
+                        result = self._run_with_voting(
+                            lens,
+                            source_code,
+                            str(file_path),
+                            voting_rounds,
+                            context_summary,
+                        )
+                    else:
+                        result = lens.analyze(
+                            source_code,
+                            str(file_path),
+                            prior_context=context_summary,
+                        )
+
+                    # Chain-of-Verification pass
+                    if verify and result.findings:
+                        logger.info(
+                            "  🔗 Verifying %d findings...",
+                            len(result.findings),
+                        )
+                        result.findings = self._verifier.verify_findings(
+                            result.findings, source_code, str(file_path)
+                        )
+
+                    # Store in disk cache
+                    if use_cache and self._cache.enabled and voting_rounds <= 1:
+                        self._cache.put(source_code, lens.name, result)
+
+                # Accumulate session context for subsequent lenses
+                session.add_result(result)
 
                 all_results.append(result)
                 logger.info(
-                    "  ✅ %s: %d findings (%.0f ms)",
+                    "  ✅ %s: %d findings (%.0f ms)%s",
                     lens.name,
                     len(result.findings),
                     result.execution_time_ms,
+                    " [CACHED]" if cached_result else "",
                 )
 
         report = self._aggregator.aggregate(all_results)
-        self._log_summary(report)
+        self._log_summary(report, cache_hits, cache_misses)
         return report
 
     def _run_with_voting(
@@ -118,6 +179,7 @@ class ReviewEngine:
         source_code: str,
         file_path: str,
         rounds: int,
+        prior_context: str = "",
     ) -> LensResult:
         """Run a lens multiple times and keep findings with majority votes.
 
@@ -128,7 +190,9 @@ class ReviewEngine:
 
         for round_num in range(rounds):
             logger.info("    🗳️ Voting round %d/%d", round_num + 1, rounds)
-            result = lens.analyze(source_code, file_path)
+            result = lens.analyze(
+                source_code, file_path, prior_context=prior_context
+            )
             all_round_findings.append(result.findings)
 
         # Count how many rounds each finding appears in
@@ -151,7 +215,6 @@ class ReviewEngine:
             if votes >= threshold
         ]
 
-        # Use the last round's metadata for timing
         last_result = LensResult(
             lens_name=lens.name,
             category=lens.category,
@@ -170,14 +233,23 @@ class ReviewEngine:
         )
 
     @staticmethod
-    def _log_summary(report: AggregatedReport) -> None:
+    def _log_summary(
+        report: AggregatedReport,
+        cache_hits: int = 0,
+        cache_misses: int = 0,
+    ) -> None:
         """Log a summary of the aggregated review report."""
         stats = report.stats
         total = len(report.all_findings)
         verified = len(report.verified_findings)
+        cache_info = ""
+        if cache_hits + cache_misses > 0:
+            cache_info = (
+                f" | Cache: {cache_hits} hits, {cache_misses} misses"
+            )
         logger.info(
             "📊 Review complete: %d findings (%d verified) | "
-            "CRITICAL=%d HIGH=%d MEDIUM=%d LOW=%d INFO=%d",
+            "CRITICAL=%d HIGH=%d MEDIUM=%d LOW=%d INFO=%d%s",
             total,
             verified,
             stats.get("CRITICAL", 0),
@@ -185,4 +257,5 @@ class ReviewEngine:
             stats.get("MEDIUM", 0),
             stats.get("LOW", 0),
             stats.get("INFO", 0),
+            cache_info,
         )
