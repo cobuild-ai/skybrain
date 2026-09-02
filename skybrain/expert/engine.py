@@ -22,7 +22,7 @@ from skybrain.expert.models import (
 from skybrain.expert.registry import LensRegistry, default_registry
 from skybrain.expert.store import ConsensusContextStore, default_context_store
 from skybrain.expert.voter import ConsensusVoter
-from skybrain.review.client import SkyBrainClient
+from skybrain.review.client import LLMClient, SkyBrainClient
 
 logger = logging.getLogger("skybrain.expert.engine")
 
@@ -50,7 +50,7 @@ class ExpertEngine:
 
     def __init__(
         self,
-        client: Optional[SkyBrainClient] = None,
+        client: Optional[LLMClient] = None,
         registry: Optional[LensRegistry] = None,
         voter: Optional[ConsensusVoter] = None,
         store: Optional[ConsensusContextStore] = None,
