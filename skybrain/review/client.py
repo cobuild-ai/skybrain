@@ -12,7 +12,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
-from typing import Optional
+from typing import Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger("skybrain.review.client")
 
@@ -22,15 +22,34 @@ RETRY_DELAY_SECONDS = 3.0
 REQUEST_TIMEOUT_SECONDS = 120.0
 
 
+@runtime_checkable
+class LLMClient(Protocol):
+    """Model-agnostic inference client interface.
+
+    Allows seamless swapping between on-device SLM (SkyBrain Qwen 3.8)
+    and commercial cloud LLMs (Gemini, Claude, GPT-4o) without touching
+    the core ExpertEngine or ExpertLens specifications.
+    """
+
+    def query(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> str:
+        """Send chat messages and return assistant text."""
+        ...
+
+
 class SkyBrainClient:
-    """HTTP client for the local SkyBrain OpenAI-compatible API.
+    """HTTP client for the local SkyBrain OpenAI-compatible API (Qwen 3.8).
 
     Responsibilities (Single Responsibility):
       - Send chat completion requests to the local daemon
       - Auto-heal by restarting daemon on connection failure
       - Retry with exponential backoff
 
-    This class owns NO business logic — it is pure infrastructure.
+    Implements LLMClient protocol.
     """
 
     def __init__(
