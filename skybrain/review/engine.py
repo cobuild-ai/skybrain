@@ -63,9 +63,13 @@ class ReviewEngine:
         verify: bool = True,
         voting_rounds: int = 1,
         use_cache: bool = True,
-        share_context: bool = True,
     ) -> AggregatedReport:
-        """Execute the full multi-pass review pipeline.
+        """Execute the full multi-pass review pipeline with strict blind isolation.
+
+        Blind Evaluation Invariant:
+          Each lens evaluates code independently using ONLY raw source code and its
+          own domain rules. Findings from other lenses are NEVER leaked during evaluation
+          to prevent confirmation bias and consensus contamination.
 
         Args:
             file_paths: Source files to review.
@@ -73,14 +77,11 @@ class ReviewEngine:
             voting_rounds: Number of Self-Consistency rounds per lens.
                            Findings appearing in ≥50% of rounds survive.
             use_cache: If True, use disk cache to skip unchanged files.
-            share_context: If True, share prior lens findings with
-                           subsequent lenses via session context.
 
         Returns:
             AggregatedReport with all findings, stats, and metadata.
         """
         all_results: list[LensResult] = []
-        session = SessionContext()
         cache_hits = 0
         cache_misses = 0
 
@@ -97,15 +98,6 @@ class ReviewEngine:
 
             logger.info("📄 Reviewing: %s", file_path)
 
-            # Store file metadata in session for cross-lens awareness
-            session.add_file_metadata(
-                str(file_path),
-                {
-                    "line_count": source_code.count("\n") + 1,
-                    "size_bytes": len(source_code.encode("utf-8")),
-                },
-            )
-
             for lens in self._lenses:
                 logger.info("  🔍 Lens: %s", lens.name)
 
@@ -120,27 +112,18 @@ class ReviewEngine:
                 else:
                     cache_misses += 1
 
-                    # ── Tier 2: Session Context Injection ──
-                    context_summary = ""
-                    if share_context:
-                        context_summary = session.get_context_summary(
-                            exclude_lens=lens.name
-                        )
-
-                    # Run lens analysis
+                    # Run lens analysis in strict blind isolation
                     if voting_rounds > 1:
                         result = self._run_with_voting(
                             lens,
                             source_code,
                             str(file_path),
                             voting_rounds,
-                            context_summary,
                         )
                     else:
                         result = lens.analyze(
                             source_code,
                             str(file_path),
-                            prior_context=context_summary,
                         )
 
                     # Chain-of-Verification pass
@@ -156,9 +139,6 @@ class ReviewEngine:
                     # Store in disk cache
                     if use_cache and self._cache.enabled and voting_rounds <= 1:
                         self._cache.put(source_code, lens.name, result)
-
-                # Accumulate session context for subsequent lenses
-                session.add_result(result)
 
                 all_results.append(result)
                 logger.info(
@@ -179,7 +159,6 @@ class ReviewEngine:
         source_code: str,
         file_path: str,
         rounds: int,
-        prior_context: str = "",
     ) -> LensResult:
         """Run a lens multiple times and keep findings with majority votes.
 
@@ -190,9 +169,7 @@ class ReviewEngine:
 
         for round_num in range(rounds):
             logger.info("    🗳️ Voting round %d/%d", round_num + 1, rounds)
-            result = lens.analyze(
-                source_code, file_path, prior_context=prior_context
-            )
+            result = lens.analyze(source_code, file_path)
             all_round_findings.append(result.findings)
 
         # Count how many rounds each finding appears in
