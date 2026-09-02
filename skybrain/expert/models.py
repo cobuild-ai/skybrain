@@ -7,6 +7,7 @@ and 2/3 Majority Consensus Voting.
 from __future__ import annotations
 
 import enum
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Optional
@@ -108,6 +109,41 @@ class ConsensusItem:
     final_finding: Optional[AssessmentFinding] = None
 
 
+@dataclass(frozen=True)
+class ConsensusContext:
+    """Immutable, frozen context holding verified 2/3 consensus facts.
+
+    Serves as the tamper-proof baseline for follow-up requests.
+    Contains strictly verified findings without noise or intermediate musings.
+    """
+
+    context_id: str
+    file_path: str
+    source_code: str
+    agreed_findings: tuple[AssessmentFinding, ...]
+    generation: int = 1
+    created_at: float = field(default_factory=time.time)
+
+    def format_frozen_context(self) -> str:
+        """Render the agreed facts as an authoritative, unalterable baseline."""
+        lines = [
+            f"### Authoritative Baseline (Consensus Generation {self.generation})",
+            f"File: `{self.file_path}`",
+            "The following facts have passed strict 2/3 majority consensus.",
+            "They are immutable premises. Do NOT dispute, alter, or re-debate them:",
+        ]
+        if not self.agreed_findings:
+            lines.append("No defects identified in previous consensus rounds (Code verified clean).")
+        else:
+            for idx, f in enumerate(self.agreed_findings, start=1):
+                loc = f"Line {f.line}" if f.line else "File level"
+                lines.append(
+                    f"{idx}. [{f.severity.name}] {f.rule_id} ({loc}): {f.description}\n"
+                    f"   Established Refactoring: {f.suggestion}"
+                )
+        return "\n".join(lines)
+
+
 @dataclass
 class ExpertReport:
     """Aggregated final report produced by ExpertEngine."""
@@ -119,6 +155,7 @@ class ExpertReport:
     consensus_items: list[ConsensusItem] = field(default_factory=list)
     total_evaluations: int = 0
     execution_time_ms: float = 0.0
+    consensus_context: Optional[ConsensusContext] = None
 
     @property
     def stats(self) -> dict[str, int]:

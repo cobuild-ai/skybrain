@@ -6,6 +6,7 @@ Decoupled Knowledge Layer Projections (ExpertLens) with 2/3 Majority Consensus.
 from skybrain.expert.engine import ExpertEngine
 from skybrain.expert.models import (
     AssessmentFinding,
+    ConsensusContext,
     ConsensusItem,
     ConsensusVerdict,
     EvaluationCriterion,
@@ -14,6 +15,7 @@ from skybrain.expert.models import (
     Severity,
 )
 from skybrain.expert.registry import LensRegistry, default_registry
+from skybrain.expert.store import ConsensusContextStore, default_context_store
 from skybrain.expert.specs import (
     CLEAN_ARCHITECTURE_LENS,
     CLEAN_CODE_LENS,
@@ -34,6 +36,8 @@ __all__ = [
     "STANDARD_EXPERT_LENSES",
     "TEST_RULES_LENS",
     "AssessmentFinding",
+    "ConsensusContext",
+    "ConsensusContextStore",
     "ConsensusItem",
     "ConsensusVerdict",
     "ConsensusVoter",
@@ -43,5 +47,6 @@ __all__ = [
     "ExpertReport",
     "LensRegistry",
     "Severity",
+    "default_context_store",
     "default_registry",
 ]
