@@ -25,6 +25,7 @@ from skybrain.expert.specs import (
     CLEAN_CODE_LENS,
     TEST_RULES_LENS,
 )
+from skybrain.expert.store import ConsensusContextStore
 from skybrain.expert.voter import ConsensusVoter
 
 
@@ -248,3 +249,94 @@ class TestExpertEngine:
 
         assert len(report.accepted_findings) == 0
         assert len(report.rejected_findings) == 1  # Successfully quarantined
+
+
+# ═══════════════════════════════════════════════════════════════
+#  5. Consensus Context Cache & Follow-up Pipeline Tests
+# ═══════════════════════════════════════════════════════════════
+
+class TestConsensusContextPipeline:
+    """Verify that agreed findings freeze into an immutable baseline
+    and subsequent evaluations strictly use it with 2/3 consensus.
+    """
+
+    def test_freeze_and_followup_consensus(self, tmp_path):
+        sample_code = tmp_path / "app.py"
+        sample_code.write_text("class Core:\n    pass\n")
+
+        finding_json_1 = json.dumps([
+            {
+                "line": 1,
+                "rule_id": "CC-SRP-001",
+                "principle": "Single Responsibility",
+                "description": "Initial finding",
+                "suggestion": "Fix it",
+                "severity": "HIGH",
+            }
+        ])
+
+        mock_client = MagicMock()
+        # Initial evaluation: 3 rounds (2 findings, 1 empty -> 2/3 ACCEPTED)
+        mock_client.query.side_effect = [finding_json_1, finding_json_1, "[]"]
+
+        store = ConsensusContextStore(cache_dir=tmp_path / "cache")
+        engine = ExpertEngine(client=mock_client, store=store)
+
+        # 1. First evaluation freezes consensus baseline (Gen 1)
+        report1 = engine.evaluate_file(
+            file_path=sample_code,
+            lenses=[CLEAN_CODE_LENS],
+            rounds_per_lens=3,
+        )
+
+        assert len(report1.accepted_findings) == 1
+        assert report1.consensus_context is not None
+        assert report1.consensus_context.generation == 1
+        assert len(report1.consensus_context.agreed_findings) == 1
+
+        # 2. Follow-up evaluation with new lens on top of frozen baseline
+        finding_json_2 = json.dumps([
+            {
+                "line": 1,
+                "rule_id": "CA-DEP-001",
+                "principle": "Inward Dependency Rule",
+                "description": "Followup architecture issue",
+                "suggestion": "Invert dependency",
+                "severity": "CRITICAL",
+            }
+        ])
+
+        # Next 3 rounds: 2 findings, 1 empty -> 2/3 ACCEPTED
+        mock_client.query.side_effect = [finding_json_2, finding_json_2, "[]"]
+
+        report2 = engine.followup_evaluate(
+            context=report1.consensus_context,
+            lenses=[CLEAN_ARCHITECTURE_LENS],
+            rounds_per_lens=3,
+        )
+
+        assert len(report2.accepted_findings) == 1
+        assert report2.accepted_findings[0].rule_id == "CA-DEP-001"
+        # Promoted to Generation 2 holding both Gen 1 and Gen 2 agreed facts
+        assert report2.consensus_context.generation == 2
+        assert len(report2.consensus_context.agreed_findings) == 2
+
+    def test_store_disk_persistence_and_reload(self, tmp_path):
+        store = ConsensusContextStore(cache_dir=tmp_path / "cache")
+        f = make_finding(line=15, description="Persistence test")
+        ctx = store.freeze(
+            file_path="/tmp/test.py",
+            source_code="x = 10\n",
+            agreed_findings=[f],
+            generation=1,
+        )
+
+        # Fresh store instance reading from same disk dir
+        store2 = ConsensusContextStore(cache_dir=tmp_path / "cache")
+        reloaded = store2.get(ctx.context_id)
+
+        assert reloaded is not None
+        assert reloaded.context_id == ctx.context_id
+        assert len(reloaded.agreed_findings) == 1
+        assert reloaded.agreed_findings[0].description == "Persistence test"
+
