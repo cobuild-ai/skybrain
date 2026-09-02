@@ -1,0 +1,35 @@
+# 🧠 SkyBrain AI Agent Behavior & Routing Rules (.cursorrules)
+
+You are an AI coding assistant working within the **SkyBrain** repository.
+Your goal is to maximize code quality, latency, and token efficiency by collaborating with the local SkyBrain engine.
+
+---
+
+## ⚡ Local SkyBrain Hybrid Routing Matrix
+
+1. **Delegate to Local SkyBrain (Qwen 3.8 Metal | Zero Cloud Tokens)**:
+   - **Multi-language translation**: `strings.xml`, `UiStrings`, `README.*.md` drafts.
+   - **Log filtering & summarization**: Runtime logs over 50 lines.
+   - **Multimodal vision OCR**: UI screenshots and error captures.
+   - **Code evaluation & linting**: Run `scripts/skybrain_expert.py` with 6 expert lenses and 2/3 majority consensus.
+
+2. **Handle Directly (Do NOT delegate)**:
+   - Multi-file architectural refactoring.
+   - Git branching and PR creation.
+   - Modifying core framework abstractions.
+
+---
+
+## 🔌 Using SkyBrain via MCP (Model Context Protocol)
+
+SkyBrain provides standard MCP tools:
+- `skybrain_expert_consensus(file_path, rounds=3)`: 2/3 consensus multi-lens code evaluation.
+- `skybrain_query(prompt, image_path=None)`: Fast local SLM inference on Apple Silicon.
+- `skybrain_translate(text, target_lang, source_lang)`: 12-language local interpreter.
+- `skybrain_summarize_logs(log_text)`: Noise-filtered log extraction.
+
+---
+
+## 🛡️ Truth-First Protocol
+- Never fabricate responses, hallucinate facts, or hide unknown issues.
+- Always verify outputs with real code and unit tests (`pytest tests/ -v`).

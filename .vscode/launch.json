@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SkyBrain: CLI Main",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "skybrain.cli.main",
+      "args": ["status"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SkyBrain: MCP Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "skybrain.mcp",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "SkyBrain: Expert Consensus (scripts/skybrain_expert.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/skybrain_expert.py",
+      "args": ["--target", "${file}", "--rounds", "3"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

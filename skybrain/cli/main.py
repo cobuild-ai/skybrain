@@ -251,6 +251,13 @@ def ask(
     console.print(f"\n[bold cyan]🤖 SkyBrain Response (In-Process):[/bold cyan]\n{content}\n")
 
 
+@app.command()
+def mcp():
+    """Starts the Model Context Protocol (MCP) server for VS Code, Cursor, Cline, and Claude Desktop."""
+    from skybrain.mcp.server import main as mcp_main
+    mcp_main()
+
+
 if __name__ == "__main__":
     app()
 
