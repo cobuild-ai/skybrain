@@ -30,6 +30,7 @@ class Category(str, enum.Enum):
     CLEAN_ARCHITECTURE = "clean_architecture"
     SECURITY = "security"
     PERFORMANCE = "performance"
+    AI_CONDUCT = "ai_conduct"
 
 
 @dataclass(frozen=True)
@@ -114,3 +115,18 @@ class AggregatedReport:
                 1 for f in self.all_findings if f.severity == sev
             )
         return counts
+
+    @property
+    def findings(self) -> list[Finding]:
+        """Alias for all_findings."""
+        return self.all_findings
+
+    @property
+    def files_reviewed(self) -> list[str]:
+        """List of distinct file paths reviewed."""
+        return list({r.file_path for r in self.lens_results})
+
+    @property
+    def total_duration_seconds(self) -> float:
+        """Total execution time in seconds across all lenses."""
+        return sum(r.execution_time_ms for r in self.lens_results) / 1000.0

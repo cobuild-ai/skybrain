@@ -12,6 +12,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger("skybrain.review.client")
@@ -19,7 +20,7 @@ logger = logging.getLogger("skybrain.review.client")
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 3.0
-REQUEST_TIMEOUT_SECONDS = 120.0
+REQUEST_TIMEOUT_SECONDS = 240.0
 
 
 @runtime_checkable
@@ -137,11 +138,32 @@ class SkyBrainClient:
 
     @staticmethod
     def _try_auto_heal() -> None:
-        """Attempt to start the SkyBrain daemon if it is not running."""
-        logger.info("🔄 Auto-healing: attempting to start SkyBrain daemon...")
+        """Attempt to start the SkyBrain daemon if it is not running.
+
+        Resolution order for the ``skybrain`` CLI binary:
+          1. ``shutil.which("skybrain")`` — global PATH (uv tool install)
+          2. ``~/.local/bin/skybrain`` — uv tool default install location
+        """
+        import shutil
+
+        skybrain_bin = shutil.which("skybrain")
+        if skybrain_bin is None:
+            # Fallback: uv tool default install location
+            fallback = Path.home() / ".local" / "bin" / "skybrain"
+            if fallback.exists():
+                skybrain_bin = str(fallback)
+
+        if skybrain_bin is None:
+            logger.warning(
+                "⚠️ Auto-heal skipped: 'skybrain' CLI not found in PATH. "
+                "Install with: uv tool install skybrain"
+            )
+            return
+
+        logger.info("🔄 Auto-healing: starting SkyBrain daemon via %s", skybrain_bin)
         try:
             subprocess.run(
-                ["01-production/skybrain/.venv/bin/skybrain", "start"],
+                [skybrain_bin, "start"],
                 capture_output=True,
                 timeout=15,
                 check=False,

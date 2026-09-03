@@ -1,7 +1,6 @@
 """Clean Code Review Lens — Robert C. Martin's principles."""
 
-from skybrain.review.lenses.base import ReviewLens
-from skybrain.review.models import Category
+from skybrain.review.lenses.base import Category, ReviewLens
 
 
 class CleanCodeLens(ReviewLens):
