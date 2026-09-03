@@ -1,7 +1,6 @@
 """Security Review Lens — OWASP and defensive programming principles."""
 
-from skybrain.review.lenses.base import ReviewLens
-from skybrain.review.models import Category
+from skybrain.review.lenses.base import Category, ReviewLens
 
 
 class SecurityLens(ReviewLens):

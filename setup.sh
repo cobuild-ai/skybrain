@@ -49,11 +49,37 @@ fi
 VENV_PYTHON=".venv/bin/python"
 VENV_PIP=".venv/bin/pip"
 
-# 3. Install Package & Dependencies
+# 2.5 Ensure Localhost NO_PROXY
+export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}"
+export no_proxy="${no_proxy:-localhost,127.0.0.1,::1}"
+
+# 3. Install Package & Dependencies (with Corporate SSL Auto-Healing)
 echo -e "\n⚙️ Step 3: Installing dependencies and editable skybrain package..."
-"$VENV_PIP" install --upgrade pip --quiet
-"$VENV_PIP" install -e ".[dev]" --quiet
-echo -e "  ${GREEN}✔ Dependencies installed successfully.${RESET}"
+
+# Detect Corporate CA bundle from environment if present
+CA_ARGS=()
+if [ -n "${SKYBRAIN_CA_BUNDLE:-}" ] && [ -f "${SKYBRAIN_CA_BUNDLE}" ]; then
+    CA_ARGS=(--cert "${SKYBRAIN_CA_BUNDLE}")
+elif [ -n "${SSL_CERT_FILE:-}" ] && [ -f "${SSL_CERT_FILE}" ]; then
+    CA_ARGS=(--cert "${SSL_CERT_FILE}")
+elif [ -n "${REQUESTS_CA_BUNDLE:-}" ] && [ -f "${REQUESTS_CA_BUNDLE}" ]; then
+    CA_ARGS=(--cert "${REQUESTS_CA_BUNDLE}")
+fi
+
+install_deps() {
+    "$VENV_PIP" install --upgrade pip "${CA_ARGS[@]}" --quiet
+    "$VENV_PIP" install -e ".[dev]" "${CA_ARGS[@]}" --quiet
+}
+
+if ! install_deps; then
+    echo -e "  ${YELLOW}⚠️ Standard SSL install failed. Attempting Corporate Proxy / Trusted-Host fallback...${RESET}"
+    TRUSTED_HOSTS=(--trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org)
+    "$VENV_PIP" install --upgrade pip "${TRUSTED_HOSTS[@]}" --quiet
+    "$VENV_PIP" install -e ".[dev]" "${TRUSTED_HOSTS[@]}" --quiet
+    echo -e "  ${GREEN}✔ Dependencies installed successfully via Corporate SSL Fallback.${RESET}"
+else
+    echo -e "  ${GREEN}✔ Dependencies installed successfully.${RESET}"
+fi
 
 # 4. Detect Apple Silicon Metal GPU
 echo -e "\n🍏 Step 4: Inspecting Apple Silicon Metal acceleration..."
@@ -87,16 +113,28 @@ cat <<EOF > .vscode/mcp.json
 EOF
 echo -e "  ${GREEN}✔ Generated .vscode/mcp.json (VS Code / Cursor / Claude Desktop ready)${RESET}"
 
-# 7. Summary & Quickstart Guide
+# 7. Global CLI Provisioning via uv tool (Project Mandatory Standard)
+if command -v uv >/dev/null 2>&1; then
+    echo -e "\n🌐 Step 7: Registering global 'skybrain' CLI via uv tool..."
+    CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable . --force --quiet
+    echo -e "  ${GREEN}✔ Global 'skybrain' command is active on \$PATH via uv tool!${RESET}"
+else
+    echo -e "\n💡 Step 7: 'uv' is recommended for ultra-fast isolated CLI execution."
+    echo -e "   Install uv with: ${CYAN}brew install uv${RESET} or ${CYAN}curl -LsSf https://astral.sh/uv/install.sh | sh${RESET}"
+fi
+
+
+# 8. Summary & Quickstart Guide
 echo -e "\n${CYAN}═══════════════════════════════════════════════════════════════${RESET}"
 echo -e "${GREEN}🎉 SkyBrain is completely installed and ready to serve!${RESET}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${RESET}\n"
 echo -e "${BOLD}🚀 Quickstart Commands:${RESET}"
 echo -e "  1. Start daemon in background:"
-echo -e "     ${CYAN}.venv/bin/skybrain start${RESET}"
+echo -e "     ${CYAN}skybrain start${RESET}  (or: ${CYAN}.venv/bin/skybrain start${RESET})"
 echo -e "  2. Run 2/3 Consensus Multi-Lens Code Review:"
 echo -e "     ${CYAN}.venv/bin/python scripts/skybrain_expert.py --target <FILE_PATH> --rounds 3${RESET}"
 echo -e "  3. Start MCP Server for VS Code / Cline:"
-echo -e "     ${CYAN}.venv/bin/skybrain mcp${RESET}"
+echo -e "     ${CYAN}skybrain mcp${RESET}   (or: ${CYAN}.venv/bin/skybrain mcp${RESET})"
 echo -e "  4. Check daemon status:"
-echo -e "     ${CYAN}.venv/bin/skybrain status${RESET}\n"
+echo -e "     ${CYAN}skybrain status${RESET}\n"
+
