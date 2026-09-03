@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Sequence, Type
+from typing import Callable, Optional, Sequence, Type
 
 from skybrain.review.aggregator import FindingAggregator
 from skybrain.review.cache import ResultCache, SessionContext
@@ -63,6 +63,7 @@ class ReviewEngine:
         verify: bool = True,
         voting_rounds: int = 1,
         use_cache: bool = True,
+        progress_callback: Optional[Callable[[str, float], None]] = None,
     ) -> AggregatedReport:
         """Execute the full multi-pass review pipeline with strict blind isolation.
 
@@ -77,6 +78,7 @@ class ReviewEngine:
             voting_rounds: Number of Self-Consistency rounds per lens.
                            Findings appearing in ≥50% of rounds survive.
             use_cache: If True, use disk cache to skip unchanged files.
+            progress_callback: Optional callback func(step_description, advance_amount).
 
         Returns:
             AggregatedReport with all findings, stats, and metadata.
@@ -98,8 +100,20 @@ class ReviewEngine:
 
             logger.info("📄 Reviewing: %s", file_path)
 
-            for lens in self._lenses:
+            total_lenses = len(self._lenses)
+            lens_icons = {
+                "CleanCode": "🧹 Clean Code",
+                "CleanArchitecture": "🏛️ Clean Architecture",
+                "Security": "🛡️ Security",
+                "Performance": "⚡ Performance",
+                "AIConduct": "🤖 AI Conduct",
+            }
+
+            for idx, lens in enumerate(self._lenses, 1):
+                lens_title = lens_icons.get(lens.name, f"🔍 {lens.name}")
                 logger.info("  🔍 Lens: %s", lens.name)
+                if progress_callback:
+                    progress_callback(f"[{idx}/{total_lenses} {lens_title} analyzing: {file_path.name}]", 0.0)
 
                 # ── Tier 1: Disk Cache Check ──
                 cached_result = None
@@ -109,6 +123,8 @@ class ReviewEngine:
                 if cached_result is not None:
                     cache_hits += 1
                     result = cached_result
+                    if progress_callback:
+                        progress_callback(f"[{idx}/{total_lenses} {lens_title} cache hit: {file_path.name}]", 1.0)
                 else:
                     cache_misses += 1
 
@@ -128,6 +144,8 @@ class ReviewEngine:
 
                     # Chain-of-Verification pass
                     if verify and result.findings:
+                        if progress_callback:
+                            progress_callback(f"[🔍 Verifier fact-checking ({len(result.findings)} findings): {file_path.name}]", 0.0)
                         logger.info(
                             "  🔗 Verifying %d findings...",
                             len(result.findings),
@@ -139,6 +157,9 @@ class ReviewEngine:
                     # Store in disk cache
                     if use_cache and self._cache.enabled and voting_rounds <= 1:
                         self._cache.put(source_code, lens.name, result)
+
+                    if progress_callback:
+                        progress_callback(f"[{idx}/{total_lenses} {lens_title} complete: {file_path.name}]", 1.0)
 
                 all_results.append(result)
                 logger.info(

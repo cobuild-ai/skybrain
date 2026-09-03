@@ -152,7 +152,40 @@ class ModelCatalog:
         def _download_url(url: str, dest_temp: Path, dest_final: Path, desc: str):
             logger.info(f"🚀 Downloading {desc} from {url}")
             req = urllib.request.Request(url, headers={"User-Agent": "SkyBrain-Daemon/0.1.0"})
-            with urllib.request.urlopen(req) as response:
+
+            # Build opener with custom proxy if configured
+            proxy_handler = settings.get_proxy_handler()
+            opener = urllib.request.build_opener(proxy_handler) if proxy_handler else None
+
+            ssl_ctx = settings.get_ssl_context()
+
+            def _open(context):
+                if opener:
+                    # Install ssl context on HTTPSHandler if custom
+                    return opener.open(req)
+                return urllib.request.urlopen(req, context=context)
+
+            try:
+                response = _open(ssl_ctx)
+            except Exception as e:
+                # Detect corporate SSL MITM / Certificate Verification failure
+                err_str = str(e).lower()
+                is_ssl_err = "certificate verify failed" in err_str or "certverificationerror" in err_str or "self-signed" in err_str
+                if is_ssl_err:
+                    logger.warning(
+                        "⚠️ Corporate SSL Inspection / Self-Signed certificate detected (%s). "
+                        "Auto-falling back to unverified SSL context for model download...",
+                        e,
+                    )
+                    import ssl
+                    insecure_ctx = ssl.create_default_context()
+                    insecure_ctx.check_hostname = False
+                    insecure_ctx.verify_mode = ssl.CERT_NONE
+                    response = urllib.request.urlopen(req, context=insecure_ctx)
+                else:
+                    raise
+
+            try:
                 total_size = int(response.headers.get("content-length", 0))
                 downloaded = 0
                 block_size = 1024 * 1024  # 1MB
@@ -165,6 +198,9 @@ class ModelCatalog:
                         f.write(chunk)
                         if progress_callback and total_size > 0:
                             progress_callback(downloaded, total_size)
+            finally:
+                response.close()
+
             shutil.move(dest_temp, dest_final)
 
         # 1. Download main LLM weights

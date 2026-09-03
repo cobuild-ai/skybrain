@@ -95,6 +95,40 @@ class DaemonSupervisor:
         return None
 
     @staticmethod
+    def kill_stale_daemon_processes(port: Optional[int] = settings.port, match_patterns: Optional[List[str]] = None) -> int:
+        """Standardized orphan/zombie process cleanup matching MySkyNet lifecycle patterns."""
+        return DaemonSupervisor.cleanup_stale_processes(port=port, match_patterns=match_patterns)
+
+    @staticmethod
+    def check_health_fast(host: str = settings.host, port: int = settings.port, timeout: float = 0.15) -> bool:
+        """Ultra-fast 150ms health check ping for zero-latency pre-flight verification."""
+        url = f"http://{host}:{port}/healthz"
+        try:
+            resp = httpx.get(url, timeout=timeout)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
+    @staticmethod
+    def ensure_daemon_alive(host: str = settings.host, port: int = settings.port, max_wait: float = 3.0) -> bool:
+        """Guarantees SkyBrain daemon is alive; auto-heals if dead or hanging."""
+        if DaemonSupervisor.check_health_fast(host=host, port=port):
+            return True
+
+        logger.warning("🩺 Daemon unresponsive during pre-flight check. Triggering auto-heal...")
+        DaemonSupervisor.kill_stale_daemon_processes(port=port)
+        DaemonSupervisor.start(host=host, port=port, force=True)
+
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            time.sleep(0.2)
+            if DaemonSupervisor.check_health_fast(host=host, port=port):
+                logger.info("✅ SkyBrain daemon auto-healed and serving.")
+                return True
+
+        return False
+
+    @staticmethod
     def cleanup_stale_processes(port: Optional[int] = settings.port, match_patterns: Optional[List[str]] = None) -> int:
         """
         Scans and terminates any stale, orphan, or zombie processes holding the port or running skybrain.
