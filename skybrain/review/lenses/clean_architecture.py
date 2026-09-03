@@ -1,7 +1,6 @@
 """Clean Architecture Review Lens — Uncle Bob's dependency rules."""
 
-from skybrain.review.lenses.base import ReviewLens
-from skybrain.review.models import Category
+from skybrain.review.lenses.base import Category, ReviewLens
 
 
 class CleanArchitectureLens(ReviewLens):

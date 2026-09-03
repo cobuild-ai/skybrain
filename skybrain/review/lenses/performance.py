@@ -1,7 +1,6 @@
 """Performance Review Lens — Memory, I/O, and complexity analysis."""
 
-from skybrain.review.lenses.base import ReviewLens
-from skybrain.review.models import Category
+from skybrain.review.lenses.base import Category, ReviewLens
 
 
 class PerformanceLens(ReviewLens):

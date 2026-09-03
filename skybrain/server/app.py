@@ -9,13 +9,34 @@ from pydantic import BaseModel, Field
 
 from skybrain.core.config import settings
 from skybrain.engine.model_catalog import ModelCatalog, MODEL_PRESETS
+from contextlib import asynccontextmanager
+from skybrain.core.monitor import HostMemoryMonitor, BackgroundMemoryWatcher, SystemGuard, MemoryStatusLevel
 
 logger = logging.getLogger("skybrain.server")
-app = FastAPI(title="SkyBrain OpenAI-Compatible API", version="0.1.0")
 
 _catalog = ModelCatalog()
 _llm_instance = None
 _infer_lock = threading.Lock()
+_memory_watcher: Optional[BackgroundMemoryWatcher] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _memory_watcher
+    try:
+        _memory_watcher = BackgroundMemoryWatcher(interval_seconds=15.0)
+        _memory_watcher.start()
+    except Exception as e:
+        logger.warning(f"Failed to start BackgroundMemoryWatcher: {e}")
+    try:
+        yield
+    finally:
+        if _memory_watcher:
+            _memory_watcher.stop()
+            _memory_watcher = None
+
+
+app = FastAPI(title="SkyBrain OpenAI-Compatible API", version="0.1.0", lifespan=lifespan)
 
 
 def get_llm(force_reload: bool = False):
@@ -76,17 +97,35 @@ class ChatCompletionRequest(BaseModel):
 def healthz():
     active_key = _catalog.get_active_key()
     installed = _catalog.is_installed(active_key)
+    mem = HostMemoryMonitor.get_memory_info()
     return {
         "status": "healthy" if installed else "model_missing",
         "active_model": active_key,
         "model_installed": installed,
-        "version": settings.version
+        "version": settings.version,
+        "memory": mem.to_dict(),
     }
+
+
+@app.get("/v1/system/memory")
+def get_system_memory():
+    return HostMemoryMonitor.get_memory_info().to_dict()
 
 
 @app.get("/v1/models")
 def list_models():
-    models_data = []
+    models_data = [
+        {
+            "id": "auto",
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "skybrain-gateway",
+            "root": "smart-routing-proxy",
+            "description": "🧠 SkyBrain Smart Routing Gateway (Local Qwen 3.8 + Cloud with Circuit Breaker Failover)",
+            "active": True,
+            "installed": True,
+        }
+    ]
     for m in _catalog.list_models():
         models_data.append({
             "id": m["key"],
@@ -127,6 +166,70 @@ def chat_completions(req: ChatCompletionRequest):
     global _llm_instance
     formatted_msgs = [{"role": m.role, "content": m.content} for m in req.messages]
 
+    # Handle Smart Routing Gateway mode (model="auto")
+    if req.model == "auto":
+        from skybrain.gateway import SmartRoutingProxy
+
+        proxy = SmartRoutingProxy()
+        # Extract prompt from last user message
+        user_prompt = ""
+        system_prompt = None
+        for m in req.messages:
+            if m.role == "user":
+                user_prompt = m.content if isinstance(m.content, str) else str(m.content)
+            elif m.role == "system":
+                system_prompt = m.content if isinstance(m.content, str) else str(m.content)
+
+        def _local_exec_for_proxy(messages, system_prompt, temperature, max_tokens):
+            with _infer_lock:
+                llm = get_llm()
+                resp = llm.create_chat_completion(
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                return resp["choices"][0]["message"]["content"]
+
+        result = proxy.route_and_generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            temperature=req.temperature or 0.3,
+            max_tokens=req.max_tokens or 1024,
+            local_fallback_executor=_local_exec_for_proxy,
+        )
+
+        response_payload = {
+            "id": f"chatcmpl-skybrain-{int(time.time())}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": f"skybrain-auto:{result.get('engine', 'local')}",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": result.get("content", ""),
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
+            "skybrain_routing": {
+                "engine": result.get("engine"),
+                "is_failover": result.get("is_failover", False),
+                "target": result.get("routing_target"),
+                "rule": result.get("rule_matched"),
+            }
+        }
+        return JSONResponse(
+            content=response_payload,
+            headers={"X-Processing-Engine": result.get("engine", "SkyBrain")}
+        )
+
     if req.stream:
         return StreamingResponse(
             _stream_generator(formatted_msgs, req.temperature, req.max_tokens),
@@ -147,3 +250,4 @@ def chat_completions(req: ChatCompletionRequest):
             # Reset corrupted instance so subsequent calls self-heal
             _llm_instance = None
             raise HTTPException(status_code=500, detail=str(e))
+

@@ -15,6 +15,15 @@ from typing import Optional
 from skybrain.review.client import SkyBrainClient
 from skybrain.review.models import Category, Finding, LensResult, Severity
 
+__all__ = [
+    "ReviewLens",
+    "Category",
+    "Finding",
+    "LensResult",
+    "Severity",
+    "STRUCTURED_OUTPUT_INSTRUCTION",
+]
+
 logger = logging.getLogger("skybrain.review.lens")
 
 # ── Shared JSON output schema injected into every lens prompt ────────
