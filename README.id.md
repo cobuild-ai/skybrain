@@ -23,6 +23,21 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 
 </div>
 
+
+---
+
+## 💡 Mengapa SkyBrain? (5 Keunggulan Arsitektur Utama)
+
+> **"Maksimalkan potensi terpendam Metal GPU Mac Anda untuk kecepatan rekayasa terbaik—tanpa tagihan token cloud dan privasi data mutlak."**
+
+| Keunggulan Utama | Detail & Mekanisme Arsitektur | Dampak Rekayasa & Bisnis |
+| :--- | :--- | :--- |
+| 💰 **Hemat Token Cloud 85%+** | Mengalihkan tugas massal repetitif (terjemahan multibahasa, boilerplate skema, pengujian unit, ringkasan log build 50+ baris) langsung ke SLM lokal (Qwen 3.8 / Gemma) | Memangkas biaya operasional API LLM cloud premium (Claude Sonnet, Gemini 1.5 Pro) secara signifikan |
+| 🔒 **100% Privasi Data Air-Gapped** | Tanpa transmisi jaringan keluar (Zero Outbound). Kode sumber kepemilikan, log sistem, kunci rahasia lingkungan, dan IP tidak pernah meninggalkan komputer lokal | Memenuhi standar kepatuhan dan keamanan enterprise yang ketat tanpa rasa cemas |
+| ⚡ **Kecepatan Murni Metal Tanpa Docker** | Melewati beban virtualisasi Docker; berjalan langsung di macOS, menghubungkan RAM terpadu ke inti Metal GPU Apple Silicon (M1–M4) (`-DGGML_METAL=on`) | Arsitektur zero-copy memori dan streaming token latensi ultra-rendah langsung saat digunakan |
+| 🛡️ **Proteksi RAM Host & Pemulihan Mandiri** | Pelindung memori pre-flight mencegat inferensi berat saat RAM bebas di bawah 2.5 GB; supervisor pemulihan mandiri menghidupkan daemon mati di bawah 500ms via ping 150ms | Menghilangkan freeze OOM macOS dan menyediakan circuit breaker lokal yang sangat tangguh |
+| 🔍 **Pemeriksaan Kualitas 5-Lensa & Anti-Palsu** | Menganalisis kode pada Clean Code, Clean Architecture, Security, Performance, serta lensa khusus `AI Conduct` yang mendeteksi **mock hardcoded palsu, API halusinasi, dan penyembunyian exception** | Mencegah pola anti-AI halus lolos ke produksi, menjamin integritas kode tingkat enterprise |
+
 ---
 
 ## 📊 Status Rilis (Release Status)
