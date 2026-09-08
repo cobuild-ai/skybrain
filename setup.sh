@@ -81,15 +81,34 @@ else
     echo -e "  ${GREEN}✔ Dependencies installed successfully.${RESET}"
 fi
 
-# 4. Detect Apple Silicon Metal GPU
-echo -e "\n🍏 Step 4: Inspecting Apple Silicon Metal acceleration..."
+# 4. Pre-Flight System & Hardware Diagnostic (4-Tier Assessment)
+echo -e "\n🏥 Step 4: Running Pre-Flight System & Hardware Diagnostic..."
 ARCH=$(uname -m)
 OS=$(uname -s)
-if [ "$OS" = "Darwin" ] && [ "$ARCH" = "arm64" ]; then
-    echo -e "  ${GREEN}✔ Apple Silicon ($ARCH) detected: Metal acceleration active.${RESET}"
-else
-    echo -e "  ${YELLOW}ℹ Running on $OS ($ARCH): CPU fallback mode will be used.${RESET}"
-fi
+
+"$VENV_PYTHON" -c "
+import sys
+from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
+env = HardwareAutoTuner.assess_environment()
+print(f'  🔍 Host: {env.hardware.os_name} ({env.hardware.architecture}) | CPU: {env.hardware.cpu_count} cores')
+print(f'  💾 RAM: {env.hardware.total_ram_gb:.1f} GB (Available: {env.hardware.available_ram_gb:.1f} GB)')
+print(f'  ⚡ Acceleration: {env.hardware.gpu_name} (Layers: {env.recommended_layers})')
+print(f'  🏷️ Capability: {env.title}')
+if env.tier == EnvironmentTier.INCOMPATIBLE:
+    print(f'\n  \033[1;31m❌ CRITICAL: {env.message}\033[0m\n')
+    sys.exit(2)
+elif env.tier == EnvironmentTier.CONSTRAINED:
+    print(f'  \033[1;33m⚠️ WARNING: {env.message}\033[0m')
+else:
+    print(f'  \033[1;32m✔ Pre-flight check PASSED ({env.tier.value})\033[0m')
+" || {
+    EXIT_CODE=$?
+    if [ "$EXIT_CODE" -eq 2 ]; then
+        echo -e "  ${RED}❌ Setup halted: Hardware does not meet minimum requirements for SkyBrain SLM execution.${RESET}"
+        echo -e "  ${YELLOW}👉 Please free up at least 2.5GB of RAM before running setup again.${RESET}"
+        exit 1
+    fi
+}
 
 # 5. Run Verification Tests
 echo -e "\n🧪 Step 5: Running comprehensive unit test suite..."
@@ -100,24 +119,27 @@ echo -e "  ${GREEN}✔ All unit tests passed 100%!${RESET}"
 echo -e "\n🔌 Step 6: Configuring Editor MCP (Model Context Protocol)..."
 mkdir -p .vscode
 
-ABS_PATH=$(pwd)
 cat <<EOF > .vscode/mcp.json
 {
   "mcpServers": {
     "skybrain": {
-      "command": "${ABS_PATH}/.venv/bin/python",
-      "args": ["-m", "skybrain.mcp"]
+      "command": "uv",
+      "args": ["tool", "run", "skybrain-mcp"]
     }
   }
 }
 EOF
-echo -e "  ${GREEN}✔ Generated .vscode/mcp.json (VS Code / Cursor / Claude Desktop ready)${RESET}"
+echo -e "  ${GREEN}✔ Generated .vscode/mcp.json (VS Code / Cursor / Claude Desktop / Antigravity ready)${RESET}"
 
 # 7. Global CLI Provisioning via uv tool (Project Mandatory Standard)
 if command -v uv >/dev/null 2>&1; then
-    echo -e "\n🌐 Step 7: Registering global 'skybrain' CLI via uv tool..."
-    CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable . --force --quiet
-    echo -e "  ${GREEN}✔ Global 'skybrain' command is active on \$PATH via uv tool!${RESET}"
+    echo -e "\n🌐 Step 7: Registering global 'skybrain' and 'skybrain-mcp' CLIs via uv tool..."
+    if [ "$OS" = "Darwin" ] && [ "$ARCH" = "arm64" ]; then
+        CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable . --force --quiet
+    else
+        uv tool install --editable . --force --quiet
+    fi
+    echo -e "  ${GREEN}✔ Global 'skybrain' & 'skybrain-mcp' commands active on \$PATH via uv tool!${RESET}"
 else
     echo -e "\n💡 Step 7: 'uv' is recommended for ultra-fast isolated CLI execution."
     echo -e "   Install uv with: ${CYAN}brew install uv${RESET} or ${CYAN}curl -LsSf https://astral.sh/uv/install.sh | sh${RESET}"
@@ -130,11 +152,13 @@ echo -e "${GREEN}🎉 SkyBrain is completely installed and ready to serve!${RESE
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${RESET}\n"
 echo -e "${BOLD}🚀 Quickstart Commands:${RESET}"
 echo -e "  1. Start daemon in background:"
-echo -e "     ${CYAN}skybrain start${RESET}  (or: ${CYAN}.venv/bin/skybrain start${RESET})"
-echo -e "  2. Run 2/3 Consensus Multi-Lens Code Review:"
-echo -e "     ${CYAN}.venv/bin/python scripts/skybrain_expert.py --target <FILE_PATH> --rounds 3${RESET}"
-echo -e "  3. Start MCP Server for VS Code / Cline:"
-echo -e "     ${CYAN}skybrain mcp${RESET}   (or: ${CYAN}.venv/bin/skybrain mcp${RESET})"
-echo -e "  4. Check daemon status:"
+echo -e "     ${CYAN}skybrain start${RESET}"
+echo -e "  2. Register in Anthropic Claude CLI (Claude Code):"
+echo -e "     ${CYAN}claude mcp add skybrain -- uv tool run skybrain-mcp${RESET}"
+echo -e "  3. Run 5-Lens Multi-Pass Code Review:"
+echo -e "     ${CYAN}skybrain review <FILE_OR_DIR>${RESET}"
+echo -e "  4. Check MCP Tools and Integration Status:"
+echo -e "     ${CYAN}skybrain mcp tools${RESET} | ${CYAN}skybrain mcp setup${RESET}"
+echo -e "  5. Check daemon status:"
 echo -e "     ${CYAN}skybrain status${RESET}\n"
 

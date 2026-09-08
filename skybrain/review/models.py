@@ -130,3 +130,44 @@ class AggregatedReport:
     def total_duration_seconds(self) -> float:
         """Total execution time in seconds across all lenses."""
         return sum(r.execution_time_ms for r in self.lens_results) / 1000.0
+
+    @property
+    def health_score(self) -> int:
+        """Calculates code health score from 0 to 100 based on severity penalties."""
+        score = 100
+        score -= self.stats.get("CRITICAL", 0) * 25
+        score -= self.stats.get("HIGH", 0) * 15
+        score -= self.stats.get("MEDIUM", 0) * 8
+        score -= self.stats.get("LOW", 0) * 3
+        return max(0, min(100, score))
+
+    def to_lead_llm_payload(self) -> dict:
+        """Serializes report into a structured payload optimized for Lead LLM cross-checking."""
+        findings_payload = []
+        for idx, f in enumerate(self.all_findings, start=1):
+            findings_payload.append({
+                "finding_id": f"PRE-{idx:02d}",
+                "severity": f.severity.name,
+                "category": f.category.value if hasattr(f.category, "value") else str(f.category),
+                "file": f.file,
+                "line": f.line,
+                "principle": f.principle_violated,
+                "description": f.description,
+                "suggestion": f.suggestion,
+                "confidence": round(f.confidence, 2),
+                "verified": f.verified,
+                "lead_llm_cross_check_prompt": (
+                    f"Check '{f.file}' line {f.line or 'unknown'}: '{f.principle_violated}'. "
+                    f"Validate if candidate flaw '{f.description}' is an actual issue or false positive."
+                ),
+            })
+
+        return {
+            "status": "ready_for_lead_llm_cross_check",
+            "health_score": self.health_score,
+            "total_files": self.total_files_reviewed,
+            "total_findings": len(self.all_findings),
+            "severity_counts": self.stats,
+            "duration_seconds": round(self.total_duration_seconds, 2),
+            "findings": findings_payload,
+        }

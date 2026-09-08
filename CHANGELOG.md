@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-09-08
+
+### 🚀 Added
+- **Multi-Project Document Intelligence Hub (`skybrain.store`)**:
+  - 100% on-device sovereign RAG indexing Markdown, TXT, and PDF documents.
+  - Content-Addressed Storage (CAS Deduplication) separating physical hash from logical paths.
+  - SQLite FTS5 (BM25) full-text search with project domain lexicon expansion.
+  - CLI commands: `skybrain doc add`, `skybrain doc search`, `skybrain doc list`, `skybrain doc sync`.
+- **First-Class Model Context Protocol (MCP) Server (`skybrain-mcp`)**:
+  - Standard MCP server (`skybrain/mcp/server.py`) with 9 specialized tools.
+  - Direct integration with Antigravity IDE, Anthropic Claude CLI (`claude mcp add`), and Cursor/VS Code.
+- **4-Tier Hardware Diagnostic & Pre-flight Guard**:
+  - Unified Memory and Metal GPU suitability evaluation (OPTIMAL / GOOD / MARGINAL / INSUFFICIENT).
+  - Model catalog real-time suitability indicators and optimal GPU offload layer recommendations.
+- **Lead LLM Token Optimization Protocol**:
+  - 85%+ token reduction with compact `<3KB` JSON payloads replacing verbose HTML generation.
+  - Candidate defect generation (`PRE-XX`) with lead LLM mutual fact-checking.
+
+---
+
 ## [0.2.0] - 2026-09-03
 
 ### 🚀 Added

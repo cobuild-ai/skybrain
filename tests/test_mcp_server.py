@@ -40,6 +40,47 @@ async def test_mcp_tools_list():
     assert "skybrain_query" in tool_names
     assert "skybrain_translate" in tool_names
     assert "skybrain_summarize_logs" in tool_names
+    assert "skybrain_code_review" in tool_names
+    assert "skybrain_status" in tool_names
+
+
+@pytest.mark.asyncio
+async def test_mcp_tools_call_status():
+    server = SkyBrainMCPServer()
+    req = {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": {
+            "name": "skybrain_status",
+            "arguments": {}
+        }
+    }
+    resp = await server.handle_request(req)
+    assert resp["jsonrpc"] == "2.0"
+    assert resp["id"] == 10
+    content = json.loads(resp["result"]["content"][0]["text"])
+    assert "daemon_running" in content
+    assert "memory_guard" in content
+
+
+@pytest.mark.asyncio
+async def test_mcp_tools_call_code_review_not_found():
+    server = SkyBrainMCPServer()
+    req = {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+            "name": "skybrain_code_review",
+            "arguments": {
+                "file_path": "/non/existent/file.py"
+            }
+        }
+    }
+    resp = await server.handle_request(req)
+    assert resp["jsonrpc"] == "2.0"
+    assert "Error: File not found" in resp["result"]["content"][0]["text"]
 
 
 @pytest.mark.asyncio
