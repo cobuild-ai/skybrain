@@ -14,6 +14,7 @@ from typing import Optional
 
 from skybrain.review.client import SkyBrainClient
 from skybrain.review.models import Category, Finding, LensResult, Severity
+from skybrain.utils.thinking import strip_thinking
 
 __all__ = [
     "ReviewLens",
@@ -158,9 +159,8 @@ class ReviewLens(ABC):
     def _extract_json_array(text: str) -> str:
         """Extract the first JSON array from text that may contain
         markdown fences, thinking blocks, or prose."""
-        # Strip </think> blocks from Qwen's thinking mode
-        if "</think>" in text:
-            text = text.split("</think>", 1)[-1]
+        # Strip <think>...</think> blocks from reasoning models (Qwen, Gemma, DeepSeek)
+        text = strip_thinking(text)
 
         # Strip markdown code fences
         for fence in ("```json", "```"):

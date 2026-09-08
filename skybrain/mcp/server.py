@@ -107,6 +107,87 @@ TOOLS = [
             },
             "required": ["log_text"]
         }
+    },
+    {
+        "name": "skybrain_code_review",
+        "description": "Run Multi-Lens static and semantic Pre-Screening Code Review on a Python file (CleanCode, Architecture, Security, Performance, AIConduct). Returns structured candidate findings optimized for Lead LLM (Claude/Gemini) cross-checking and verification.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to the Python source code file to review."
+                },
+                "rounds": {
+                    "type": "integer",
+                    "description": "Voting rounds per lens (default: 1 for fast, 3 for consensus).",
+                    "default": 1
+                },
+                "verify": {
+                    "type": "boolean",
+                    "description": "Run Chain-of-Thought verification on findings (default: true).",
+                    "default": True
+                }
+            },
+            "required": ["file_path"]
+        }
+    },
+    {
+        "name": "skybrain_status",
+        "description": "Check SkyBrain daemon health, active model, memory guard level, and Apple Silicon Metal GPU readiness.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "skybrain_doc_search",
+        "description": "Search multi-project document knowledge base using SQLite FTS5 (BM25) with project domain lexicon query expansion. Zero-cloud on-device retrieval.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query or natural language question."
+                },
+                "project": {
+                    "type": "string",
+                    "description": "Optional project ID to filter by (e.g., 'ossproject', 'deartalk'). Omit for cross-project search."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of chunks to return (default: 5).",
+                    "default": 5
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "skybrain_doc_import",
+        "description": "Index a file or directory as a project in the on-device CAS knowledge base with automatic deduplication and visual diagram intelligence.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Local file path (e.g. document.pdf) or directory path to scan and index."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Optional project name (defaults to file or folder name)."
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "skybrain_doc_list",
+        "description": "List all registered projects, document counts, and indexing statistics in SkyBrain knowledge base.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
@@ -273,6 +354,126 @@ class SkyBrainMCPServer:
                 f"```\n{log_text}\n```"
             )
             return await self.client.query(prompt=prompt)
+
+        elif name == "skybrain_code_review":
+            from skybrain.review.engine import ReviewEngine
+            from skybrain.review.lenses.clean_code import CleanCodeLens
+            from skybrain.review.lenses.clean_architecture import CleanArchitectureLens
+            from skybrain.review.lenses.security import SecurityLens
+            from skybrain.review.lenses.performance import PerformanceLens
+            from skybrain.review.lenses.ai_conduct import AIConductLens
+
+            file_path = args["file_path"]
+            rounds = args.get("rounds", 1)
+            verify = args.get("verify", True)
+
+            target_path = Path(file_path).resolve()
+            if not target_path.exists():
+                return f"Error: File not found: {file_path}"
+
+            lenses = [CleanCodeLens, CleanArchitectureLens, SecurityLens, PerformanceLens, AIConductLens]
+            engine = ReviewEngine(lens_classes=lenses)
+            # Run review synchronously in threadpool executor to avoid blocking event loop
+            loop = asyncio.get_running_loop()
+            report = await loop.run_in_executor(
+                None,
+                lambda: engine.review(
+                    file_paths=[target_path],
+                    verify=verify,
+                    voting_rounds=rounds,
+                    use_cache=True,
+                )
+            )
+
+            res = report.to_lead_llm_payload()
+            res["file"] = str(target_path)
+            return json.dumps(res, indent=2, ensure_ascii=False)
+
+        elif name == "skybrain_status":
+            from skybrain.server.supervisor import DaemonSupervisor
+            from skybrain.engine.model_catalog import ModelCatalog, MODEL_PRESETS
+            from skybrain.core.monitor import HostMemoryMonitor
+
+            pid = DaemonSupervisor.get_pid()
+            catalog = ModelCatalog()
+            active_key = catalog.get_active_key()
+            mem = HostMemoryMonitor.get_memory_info()
+
+            res = {
+                "daemon_running": pid is not None,
+                "daemon_pid": pid,
+                "active_model_key": active_key,
+                "active_model_name": MODEL_PRESETS.get(active_key, {}).get("name", "Unknown"),
+                "memory_guard": mem.to_dict(),
+            }
+            return json.dumps(res, indent=2, ensure_ascii=False)
+
+        elif name == "skybrain_doc_search":
+            from skybrain.store.manager import DocumentManager
+            from skybrain.server.supervisor import DaemonSupervisor
+            from skybrain.engine.model_catalog import ModelCatalog, MODEL_PRESETS
+
+            manager = DocumentManager()
+            query = args["query"]
+            project = args.get("project")
+            limit = args.get("limit", 5)
+
+            # Check daemon & LLM status
+            daemon_pid = DaemonSupervisor.get_pid()
+            is_daemon_active = daemon_pid is not None
+            catalog = ModelCatalog()
+            active_key = catalog.get_active_key()
+            active_model_name = MODEL_PRESETS.get(active_key, {}).get("name", "Unknown") if is_daemon_active else "None (Pure SQLite FTS5 Engine)"
+
+            results = manager.search(query=query, project_id=project, limit=limit)
+
+            # Annotate results with provenance and diagram flags
+            enhanced_results = []
+            for r in results:
+                chunk_text = r.get("chunk_text", "")
+                has_vlm_diagram = "[On-Device Visual Intelligence]" in chunk_text
+                r_copy = dict(r)
+                r_copy["contains_vlm_diagram"] = has_vlm_diagram
+                enhanced_results.append(r_copy)
+
+            engine_metadata = {
+                "retrieval_mode": "FTS5_BM25_LEXICAL",
+                "llm_enhanced": False,
+                "local_daemon_active": is_daemon_active,
+                "active_model": active_model_name,
+                "confidence_level": "EXACT_SOURCE_RAW",
+                "processing_tag": "[💾 Engine: SQLite FTS5 (Pure Raw Text | Zero AI Hallucination)]" if not is_daemon_active else f"[⚡ Engine: SQLite FTS5 + Local Daemon Standby ({active_model_name})]",
+                "governance_note": "Truth-First & Zero Fake: Results are exact verbatim chunks extracted from local source files without LLM synthesis.",
+            }
+
+            return json.dumps({
+                "query": query,
+                "project": project or "all",
+                "total_results": len(enhanced_results),
+                "engine_metadata": engine_metadata,
+                "results": enhanced_results,
+            }, indent=2, ensure_ascii=False)
+
+        elif name == "skybrain_doc_import":
+            from skybrain.store.manager import DocumentManager
+            manager = DocumentManager()
+            path = args["path"]
+            project_name = args.get("name")
+
+            stats = manager.add_project(root_path=path, name=project_name)
+            return json.dumps({
+                "status": "success",
+                "project": stats,
+            }, indent=2, ensure_ascii=False)
+
+        elif name == "skybrain_doc_list":
+            from skybrain.store.manager import DocumentManager
+            manager = DocumentManager()
+            projects = manager.list_projects()
+            return json.dumps({
+                "total_projects": len(projects),
+                "projects": projects,
+            }, indent=2, ensure_ascii=False)
 
         else:
             raise ValueError(f"Unknown tool: {name}")

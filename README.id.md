@@ -23,6 +23,21 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 
 </div>
 
+
+---
+
+## 💡 Mengapa SkyBrain? (5 Keunggulan Arsitektur Utama)
+
+> **"Maksimalkan potensi terpendam Metal GPU Mac Anda untuk kecepatan rekayasa terbaik—tanpa tagihan token cloud dan privasi data mutlak."**
+
+| Keunggulan Utama | Detail & Mekanisme Arsitektur | Dampak Rekayasa & Bisnis |
+| :--- | :--- | :--- |
+| 💰 **Hemat Token Cloud 85%+** | Mengalihkan tugas massal repetitif (terjemahan multibahasa, boilerplate skema, pengujian unit, ringkasan log build 50+ baris) langsung ke SLM lokal (Qwen 3.8 / Gemma) | Memangkas biaya operasional API LLM cloud premium (Claude Sonnet, Gemini 1.5 Pro) secara signifikan |
+| 🔒 **100% Privasi Data Air-Gapped** | Tanpa transmisi jaringan keluar (Zero Outbound). Kode sumber kepemilikan, log sistem, kunci rahasia lingkungan, dan IP tidak pernah meninggalkan komputer lokal | Memenuhi standar kepatuhan dan keamanan enterprise yang ketat tanpa rasa cemas |
+| ⚡ **Kecepatan Murni Metal Tanpa Docker** | Melewati beban virtualisasi Docker; berjalan langsung di macOS, menghubungkan RAM terpadu ke inti Metal GPU Apple Silicon (M1–M4) (`-DGGML_METAL=on`) | Arsitektur zero-copy memori dan streaming token latensi ultra-rendah langsung saat digunakan |
+| 🛡️ **Proteksi RAM Host & Pemulihan Mandiri** | Pelindung memori pre-flight mencegat inferensi berat saat RAM bebas di bawah 2.5 GB; supervisor pemulihan mandiri menghidupkan daemon mati di bawah 500ms via ping 150ms | Menghilangkan freeze OOM macOS dan menyediakan circuit breaker lokal yang sangat tangguh |
+| 🔍 **Pemeriksaan Kualitas 5-Lensa & Anti-Palsu** | Menganalisis kode pada Clean Code, Clean Architecture, Security, Performance, serta lensa khusus `AI Conduct` yang mendeteksi **mock hardcoded palsu, API halusinasi, dan penyembunyian exception** | Mencegah pola anti-AI halus lolos ke produksi, menjamin integritas kode tingkat enterprise |
+
 ---
 
 ## 📊 Status Rilis (Release Status)
@@ -62,14 +77,16 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 - **Chain-of-Verification (CoVe):** Setiap temuan diverifikasi ulang oleh inferensi lokal mandiri untuk menyingkirkan alarm palsu (False Positive).
 - **Cache Disk Hash Konten Tier-1:** Memberikan hasil kilat dalam 0.1 detik untuk file yang tidak berubah menggunakan hashing SHA-256.
 
-### 📊 Laporan HTML Interaktif Mandiri
-- **Satu File Tanpa Ketergantungan Eksternal:** Laporan HTML lengkap dengan tampilan glassmorphism dark-mode modern yang dapat langsung dibuka di peramban.
-- **Penyaringan Interaktif Real-Time:** Saring temuan berdasarkan lensa, tingkat keparahan (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), atau pencarian teks dinamis.
+### 🎯 Payload Data Terstruktur Khusus Verifikasi Silang Lead-LLM
+- **Dioptimalkan untuk Lead LLM (Cloud AI):** Alih-alih laporan HTML peramban yang berat, SkyBrain menghasilkan JSON terstruktur (`to_lead_llm_payload()`) berisi temuan kandidat (`PRE-XX`), justifikasi aturan, rasio konsensus 2/3, dan prompt verifikasi silang khusus untuk validasi langsung oleh Cloud Gemini/Claude.
+- **Pengurangan Beban Token 85%+:** Menggantikan boilerplate HTML 25KB+ dengan payload JSON ringkas <3KB, mencegah kejenuhan konteks pada agen orkestrator.
 - **Skor Kesehatan Kode (0–100):** Penilaian kesehatan basis kode secara transparan dengan algoritma penalti terbobot.
-- **Salin Saran Kode Sekali Klik:** Ekspor saran perbaikan kode langsung ke clipboard dengan satu ketukan.
 
-### 🔀 Proxy Perutean Lokal & Circuit Breaker (Gateway Lokal)
-- **Pengalihan Tanpa Putus:** Mengarahkan permintaan ke cloud LLM (Gemini, Claude, OpenAI) dan secara otomatis beralih ke SLM on-device lokal jika kuota habis (HTTP 429) atau server sibuk (HTTP 503).
+### 📚 Kecerdasan Dokumen Multi-Proyek & Hub Cache Materialized
+- **100% RAG Berdaulat di Perangkat (Air-Gapped):** Pengindeksan dan pencarian dokumen Markdown, TXT, dan PDF secara lokal tanpa transmisi jaringan eksternal apa pun.
+- **Penyimpanan Berbasis Konten (CAS Deduplication):** Memisahkan konten fisik (SHA-256) dari jalur logis. Pemindahan/penggantian nama file memerlukan biaya re-embedding 0 detik, dan pendaftaran folder induk menggunakan kembali file sub-proyek tanpa pemborosan disk (0%).
+- **Pencarian Leksikal & Ekspansi Domain Hibrida:** Pencarian teks penuh SQLite FTS5 (BM25) berkecepatan tinggi dipadukan dengan pemanenan leksikon domain proyek otomatis (`3-Tier`, `Gate 1/2/3`, `PAD`, `Zero-Fake`).
+- **Prinsip Sumber Hanya-Baca (Read-Only):** Tidak pernah mengubah dokumen repositori asli; mengelola cache yang terisolasi di `~/.skybrain/knowledge.db` (mode WAL).
 
 ---
 
@@ -90,17 +107,17 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Dev as 👨‍💻 Pengembang / IDE (MCP)
-    participant CLI as 🖥️ SkyBrain CLI (`uv tool`)
-    participant Guard as 🧠 Pelindung Memori (RAM Guard)
+    actor Dev as 👨‍💻 Pengembang / Agen Utama (Cloud LLM)
+    participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
+    participant Guard as 🧠 Pelindung Diagnostik Perangkat Keras 4-Tier
     participant Super as 🩺 Supervisor (Auto-Heal)
     participant Engine as 🔍 Engine Review (5 Lensa)
     participant Daemon as ⚡ Daemon On-Device (Metal SLM)
-    participant HTML as 📊 Generator Laporan HTML
+    participant Lead as 👑 Lead LLM (Gemini/Claude)
 
-    Dev->>CLI: skybrain review ./src --html
-    CLI->>Guard: Periksa ketersediaan Unified Memory macOS
-    Guard-->>CLI: Memori Aman (Tersedia 6.5 GB)
+    Dev->>CLI: skybrain review ./src --json
+    CLI->>Guard: Periksa ketersediaan Unified Memory macOS & akselerasi Metal
+    Guard-->>CLI: Memori Aman (Tersedia 6.5 GB / OPTIMAL)
     CLI->>Super: check_health_fast()
     alt Daemon Mati
         Super->>Super: Hidupkan kembali daemon di latar belakang
@@ -112,8 +129,9 @@ sequenceDiagram
         Engine->>Daemon: Chain-of-Verification (Verifikasi fakta temuan)
         Daemon-->>Engine: Temuan yang telah terverifikasi
     end
-    Engine->>HTML: Buat laporan HTML interaktif mandiri
-    HTML-->>Dev: Tersimpan di ~/.skybrain/reports/review_report_*.html
+    Engine->>CLI: Kembalikan payload JSON ringkas to_lead_llm_payload()
+    CLI->>Lead: Teruskan temuan kandidat PRE-XX & panduan verifikasi
+    Lead-->>Dev: Verifikasi fakta dengan kode aktif & tentukan tindakan akhir
 ```
 
 ---
@@ -137,7 +155,7 @@ CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable .
 ```bash
 ./setup.sh
 ```
-`setup.sh` akan mendeteksi chip Apple Silicon, mengompilasi binding Metal, menjalankan 111 unit test, mendaftarkan perintah global `skybrain`, dan menghasilkan konfigurasi `.vscode/mcp.json` untuk IDE.
+`setup.sh` akan mendeteksi diagnostik perangkat keras 4-tier, mengompilasi binding Metal, menjalankan 94 unit test, mendaftarkan perintah global `skybrain`, dan menghasilkan konfigurasi `.vscode/mcp.json` untuk IDE.
 
 ### 3. Perintah CLI Umum
 ```bash
@@ -147,14 +165,26 @@ skybrain start
 # Periksa status real-time & pelindung memori host
 skybrain status
 
-# Jalankan Peninjauan Kode 5-Lensa pada file atau direktori
-skybrain review ./skybrain/core/config.py
+# Periksa katalog model dengan kesesuaian 4-tier real-time (🟢/⚠️/🛑) dan layer GPU yang disarankan
+skybrain model list
+
+# Jalankan Peninjauan Kode 5-Lensa pada file atau direktori (mendukung -j untuk JSON Lead LLM)
+skybrain review ./skybrain/core/config.py -j
 
 # Ajukan pertanyaan ke SLM on-device tanpa biaya token cloud ($0 Token)
-skybrain ask "Jelaskan Prinsip Pembalikan Ketergantungan (DIP) dalam Clean Architecture"
+skybrain query "Jelaskan Prinsip Pembalikan Ketergantungan (DIP) dalam Clean Architecture"
 
-# Ajukan pertanyaan dengan eskalasi cloud dan failover circuit breaker lokal
-skybrain ask "Buat rencana refactoring arsitektur skala besar" --cloud
+# Daftarkan direktori ke hub pengetahuan proyek dengan deduplikasi CAS
+skybrain doc add ./00-governance --name "OSS-Governance"
+
+# Cari basis pengetahuan dengan SQLite FTS5 & ekspansi leksikon domain
+skybrain doc search "3-Tier Pipeline" --project oss-governance
+
+# Tampilkan daftar proyek terdaftar dan statistik file aktif
+skybrain doc list
+
+# Sinkronisasi bertahap (Incremental Sync) untuk file yang diubah
+skybrain doc sync
 
 # Hentikan daemon latar belakang
 skybrain stop
@@ -162,15 +192,47 @@ skybrain stop
 
 ---
 
-## 💻 Integrasi Model Context Protocol (MCP)
+## 💻 Panduan Integrasi Model Context Protocol (MCP)
 
-SkyBrain dilengkapi server Model Context Protocol (MCP) bawaan, menghubungkan SLM Apple Silicon lokal Anda secara instan ke **Cursor, VS Code (Cline / Roo Code), Claude Desktop, dan Antigravity IDE**:
+SkyBrain menyediakan server Model Context Protocol (MCP) standar (`skybrain-mcp`), memungkinkan **Antigravity IDE, Anthropic Claude CLI (Claude Code), Cursor, dan VS Code** memanfaatkan kecerdasan SLM Metal Apple Silicon lokal sebagai alat kerja berkecepatan tinggi:
 
-* **Alat MCP yang Tersedia**:
-  * `skybrain_expert_consensus`: Jalankan peninjauan kode 5-Lensa langsung di dalam IDE Anda.
-  * `skybrain_query`: Ajukan pertanyaan ke Metal SLM lokal tanpa biaya token cloud.
-  * `skybrain_translate`: Terjemahan luring instan untuk 12 bahasa.
-  * `skybrain_summarize_logs`: Ringkasan cepat log build/runtime berukuran besar secara offline.
+### 🚀 Pendaftaran 1 Perintah
+
+```bash
+# Daftarkan SkyBrain di Anthropic Claude CLI (Claude Code)
+claude mcp add skybrain -- uv tool run skybrain-mcp
+
+# Atau periksa semua alat MCP langsung dari CLI
+skybrain mcp tools
+skybrain mcp setup
+```
+
+### 🛠️ 6 Alat Standar MCP yang Tersedia
+
+| Alat MCP | Deskripsi | Kasus Penggunaan Utama |
+| :--- | :--- | :--- |
+| 🔍 `skybrain_code_review` | Peninjauan semantik 5-Lensa (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`) | Audit PR & kualitas file di IDE |
+| ⚖️ `skybrain_expert_consensus` | Evaluasi multi-pass konsensus mayoritas 2/3 di 6 perspektif khusus | Verifikasi konsensus berketelitian tinggi |
+| ⚡ `skybrain_query` | Kueri langsung ke SLM Metal lokal tanpa biaya token cloud ($0) (mendukung visi multimodal) | Pembuatan draf kode cepat di perangkat |
+| 🌐 `skybrain_translate` | Terjemahan lokal offline di 12 bahasa | Sinkronisasi README & dokumen multibahasa |
+| 📜 `skybrain_summarize_logs` | Pemfilteran noise berkecepatan tinggi & analisis akar masalah log 50+ baris | Debugging log build aman tanpa kebocoran |
+| 🩺 `skybrain_status` | Status daemon real-time, model aktif, dan tingkat pelindung memori | Pemeriksaan kesiapan perangkat keras |
+| 📚 `skybrain_doc_search` | Pencarian SQLite FTS5 (BM25) multi-proyek dengan ekspansi leksikon domain proyek | Pengambilan konteks proyek instan tanpa cloud |
+| 📥 `skybrain_doc_import` | Impor direktori lokal ke basis pengetahuan CAS dengan deduplikasi hemat ruang | Pendaftaran dokumen multi-proyek |
+| 📋 `skybrain_doc_list` | Tampilkan daftar proyek terdaftar, jumlah dokumen, dan status indeks | Ringkasan dasbor hub pengetahuan |
+
+### ⚙️ Konfigurasi IDE (`mcp_config.json` / `settings.json`)
+
+```json
+{
+  "mcpServers": {
+    "skybrain": {
+      "command": "uv",
+      "args": ["tool", "run", "skybrain-mcp"]
+    }
+  }
+}
+```
 
 ---
 

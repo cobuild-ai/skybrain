@@ -11,9 +11,11 @@ from skybrain.server.supervisor import DaemonSupervisor
 
 app = typer.Typer(name="skybrain", help="🧠 SkyBrain: Universal On-Device AI Serving Daemon")
 model_app = typer.Typer(name="model", help="Manage and download AI models")
-config_app = typer.Typer(name="config", help="Manage SkyBrain Gateway and cloud endpoints/keys")
+mcp_app = typer.Typer(name="mcp", help="Manage and run Model Context Protocol (MCP) server", invoke_without_command=True)
+doc_app = typer.Typer(name="doc", help="Manage multi-project document intelligence and CAS index")
 app.add_typer(model_app)
-app.add_typer(config_app)
+app.add_typer(mcp_app)
+app.add_typer(doc_app)
 
 console = Console()
 catalog = ModelCatalog()
@@ -68,6 +70,21 @@ def start(
         return
 
     active_key = catalog.get_active_key()
+
+    # Pre-Flight 4-Tier Environment Check
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
+    assessment = HardwareAutoTuner.assess_environment(model_key=active_key)
+    if assessment.tier == EnvironmentTier.INCOMPATIBLE and not force:
+        console.print(f"\n[bold red]{assessment.title}[/bold red]")
+        console.print(f"[red]{assessment.message}[/red]\n")
+        console.print("[dim]Use '--force' if you want to bypass this check at your own risk.[/dim]")
+        raise typer.Exit(1)
+    elif assessment.tier == EnvironmentTier.CONSTRAINED:
+        console.print(f"[bold yellow]{assessment.title}[/bold yellow]")
+        console.print(f"[yellow]{assessment.message}[/yellow]\n")
+    else:
+        console.print(f"[bold green]{assessment.title}[/bold green]")
+
     if not catalog.is_installed(active_key):
         if auto_download:
             console.print(f"[bold yellow]⚠️ Active model '{active_key}' not found locally.[/bold yellow]")
@@ -84,9 +101,59 @@ def start(
         console.print(f"[bold green]✅ SkyBrain daemon running in background (PID: {pid})[/bold green]")
         console.print(f"• Endpoint: [underline]http://{host}:{port}/v1/chat/completions[/underline]")
         console.print(f"• Active Model: [bold]{catalog.get_active_key()}[/bold]")
+        console.print(f"• Auto-Tuned GPU Layers: [bold]{assessment.recommended_layers}[/bold] ({assessment.hardware.gpu_backend.upper()})")
     else:
         console.print("[bold red]❌ Failed to start SkyBrain daemon. Check ~/.skybrain/skybrain.log[/bold red]")
         raise typer.Exit(1)
+
+
+@app.command()
+def doctor(
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Evaluate specifically for this model key")
+):
+    """Diagnoses host environment, RAM, VRAM, and evaluates 4-tier suitability for SkyBrain."""
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
+    active_key = model or catalog.get_active_key()
+    hw = HardwareAutoTuner.detect_hardware()
+    assessment = HardwareAutoTuner.assess_environment(model_key=active_key, hw=hw)
+
+    table = Table(title="🏥 SkyBrain Pre-Flight System Diagnostic Report", header_style="bold cyan")
+    table.add_column("Diagnostic Item", style="bold")
+    table.add_column("Value / Status")
+
+    # Operating System & Architecture
+    table.add_row("OS / Platform", f"{hw.os_name} ({hw.architecture}) - {'64-bit' if hw.is_64bit else '32-bit'}")
+    table.add_row("CPU Logical Cores", f"{hw.cpu_count} Cores")
+
+    # Memory
+    ram_style = "green" if hw.available_ram_gb >= 3.5 else ("yellow" if hw.available_ram_gb >= 2.0 else "bold red")
+    table.add_row("Host RAM (Total / Avail)", f"[{ram_style}]{hw.total_ram_gb:.1f} GB / {hw.available_ram_gb:.1f} GB Available[/{ram_style}]")
+
+    # GPU & VRAM
+    gpu_style = "bold green" if hw.gpu_backend in ("metal", "cuda") else "yellow"
+    table.add_row("Acceleration Engine", f"[{gpu_style}]{hw.gpu_name} ({hw.gpu_backend.upper()})[/{gpu_style}]")
+    if hw.total_vram_gb is not None and hw.free_vram_gb is not None:
+        vram_style = "green" if hw.free_vram_gb >= 3.0 else "yellow"
+        table.add_row("VRAM (Total / Free)", f"[{vram_style}]{hw.total_vram_gb:.1f} GB / {hw.free_vram_gb:.1f} GB Free[/{vram_style}]")
+    else:
+        table.add_row("Dedicated VRAM", "[dim]N/A (Host RAM used via CPU)[/dim]")
+
+    # Recommended GPU Layers
+    table.add_row("Target Model", f"[bold]{active_key}[/bold]")
+    table.add_row("Auto-Tuned GPU Layers", f"[bold cyan]{assessment.recommended_layers}[/bold cyan] ({'Full Offload' if assessment.recommended_layers == -1 else ('CPU Mode' if assessment.recommended_layers == 0 else f'{assessment.recommended_layers} Layers')})")
+
+    # Environment Tier Evaluation
+    tier_colors = {
+        EnvironmentTier.ABUNDANT: "bold green",
+        EnvironmentTier.OPTIMAL: "green",
+        EnvironmentTier.CONSTRAINED: "bold yellow",
+        EnvironmentTier.INCOMPATIBLE: "bold red",
+    }
+    tier_color = tier_colors.get(assessment.tier, "white")
+    table.add_row("Capability Rating", f"[{tier_color}]{assessment.title}[/{tier_color}]")
+
+    console.print(table)
+    console.print(f"\n[{tier_color}]{assessment.message}[/{tier_color}]\n")
 
 
 @app.command()
@@ -140,6 +207,7 @@ def status():
 
     # Host System Memory & Pre-flight Guard
     from skybrain.core.monitor import HostMemoryMonitor, MemoryStatusLevel
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
     mem = HostMemoryMonitor.get_memory_info()
     if mem.status == MemoryStatusLevel.SAFE:
         mem_str = f"[green]🟢 Safe ({mem.available_gb:.1f} GB avail / {mem.total_gb:.1f} GB total)[/green]"
@@ -148,6 +216,19 @@ def status():
     else:
         mem_str = f"[bold red]🚨 Critical ({mem.available_gb:.1f} GB avail - High Freeze Risk!)[/bold red]"
     table.add_row("Host RAM (Unified)", mem_str)
+
+    # 4-Tier Pre-Flight Environment & GPU Layers
+    env = HardwareAutoTuner.assess_environment(model_key=active_key)
+    tier_colors = {
+        EnvironmentTier.ABUNDANT: "bold green",
+        EnvironmentTier.OPTIMAL: "green",
+        EnvironmentTier.CONSTRAINED: "bold yellow",
+        EnvironmentTier.INCOMPATIBLE: "bold red",
+    }
+    tier_color = tier_colors.get(env.tier, "white")
+    table.add_row("Environment Rating", f"[{tier_color}]{env.title}[/{tier_color}]")
+    layer_desc = "Full Offload" if env.recommended_layers == -1 else ("CPU Mode" if env.recommended_layers == 0 else f"{env.recommended_layers} Layers")
+    table.add_row("GPU Layer Tuning", f"[bold]{env.recommended_layers}[/bold] ({layer_desc} via {env.hardware.gpu_backend.upper()})")
     table.add_row("System Guard", "[bold green]🛡️ Enabled[/bold green] (OOM Protection & Auto-Offload)")
 
     # Corporate Network & SSL Status
@@ -165,22 +246,38 @@ def status():
 
 @model_app.command(name="list")
 def model_list():
-    """Lists all available AI model presets and their status."""
+    """Lists all available AI model presets, storage status, and real-time hardware suitability."""
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
     presets = catalog.list_models()
-    table = Table(title="🤖 SkyBrain AI Model Catalog", header_style="bold magenta")
+    table = Table(title="🤖 SkyBrain AI Model Catalog & Hardware Suitability", header_style="bold magenta")
     table.add_column("Key", style="cyan", no_wrap=True)
     table.add_column("Model Name", style="bold")
     table.add_column("Context", style="green")
     table.add_column("Size", justify="right")
     table.add_column("Status", style="bold")
     table.add_column("Active", justify="center")
+    table.add_column("Hardware Capability", style="bold")
+    table.add_column("GPU Layers", justify="center")
+
+    tier_colors = {
+        EnvironmentTier.ABUNDANT: "bold green",
+        EnvironmentTier.OPTIMAL: "green",
+        EnvironmentTier.CONSTRAINED: "bold yellow",
+        EnvironmentTier.INCOMPATIBLE: "bold red",
+    }
 
     for p in presets:
         status = "[green]Installed[/green]" if p["installed"] else "[dim]Not downloaded[/dim]"
         size_str = f"{p['size_mb']} MB" if p["installed"] else "-"
         active_str = "🟢 [bold green]YES[/bold green]" if p["active"] else "-"
-        ctx_str = f"{p['context_length'] // 1024}k tokens"
-        table.add_row(p["key"], p["name"], ctx_str, size_str, status, active_str)
+        ctx_str = f"{p['context_length'] // 1024}k"
+
+        env = HardwareAutoTuner.assess_environment(model_key=p["key"])
+        tier_col = tier_colors.get(env.tier, "white")
+        tier_short = env.title.split("]")[0] + "]"
+        layers_str = "Full (-1)" if env.recommended_layers == -1 else ("CPU (0)" if env.recommended_layers == 0 else str(env.recommended_layers))
+
+        table.add_row(p["key"], p["name"], ctx_str, size_str, status, active_str, f"[{tier_col}]{tier_short}[/{tier_col}]", layers_str)
 
     console.print(table)
     console.print("\n[dim]Commands: 'skybrain model download [key]' | 'skybrain model use [key]'[/dim]")
@@ -189,13 +286,24 @@ def model_list():
 @model_app.command(name="use")
 def model_use(
     key: str = typer.Argument(..., help="Model preset key to activate"),
-    auto_download: bool = typer.Option(True, "--auto-download/--no-auto-download", "-d/-nd", help="Automatically download model if missing")
+    auto_download: bool = typer.Option(True, "--auto-download/--no-auto-download", "-d/-nd", help="Automatically download model if missing"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force activation even if hardware capacity is critically low")
 ):
-    """Switches the active AI model."""
+    """Switches the active AI model with pre-flight hardware safety guard."""
     clean_key = key.strip().lower()
     if clean_key not in MODEL_PRESETS:
         console.print(f"[bold red]❌ Unknown preset:[/bold red] '{clean_key}'. Available: {list(MODEL_PRESETS.keys())}")
         raise typer.Exit(1)
+
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
+    env = HardwareAutoTuner.assess_environment(model_key=clean_key)
+    if env.tier == EnvironmentTier.INCOMPATIBLE and not force:
+        console.print(f"\n[bold red]{env.title}[/bold red]")
+        console.print(f"[red]{env.message}[/red]\n")
+        console.print("[dim]Use '--force' to bypass this safety guard at your own risk.[/dim]")
+        raise typer.Exit(1)
+    elif env.tier == EnvironmentTier.CONSTRAINED:
+        console.print(f"[bold yellow]{env.title}[/bold yellow]")
 
     catalog.set_active_key(clean_key)
     p = MODEL_PRESETS[clean_key]
@@ -221,10 +329,11 @@ def model_use(
 @model_app.command(name="download")
 def model_download(
     key: Optional[str] = typer.Argument(None, help="Model preset key to download"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force download even if hardware capacity is critically low"),
     insecure: bool = typer.Option(False, "--insecure", "-k", help="Skip SSL certificate verification for corporate MITM proxies"),
     ca_bundle: Optional[str] = typer.Option(None, "--ca-bundle", help="Custom CA certificate bundle path for corporate network")
 ):
-    """Downloads model weights with streaming progress."""
+    """Downloads model weights with pre-flight capability assessment and streaming progress."""
     if insecure:
         settings.ssl_verify = False
     if ca_bundle:
@@ -234,6 +343,16 @@ def model_download(
     if target_key not in MODEL_PRESETS:
         console.print(f"[bold red]❌ Unknown preset:[/bold red] '{target_key}'. Available: {list(MODEL_PRESETS.keys())}")
         raise typer.Exit(1)
+
+    from skybrain.core.hardware import HardwareAutoTuner, EnvironmentTier
+    env = HardwareAutoTuner.assess_environment(model_key=target_key)
+    if env.tier == EnvironmentTier.INCOMPATIBLE and not force:
+        console.print(f"\n[bold red]{env.title}[/bold red]")
+        console.print(f"[red]{env.message}[/red]\n")
+        console.print("[dim]Use '--force' to bypass this safety guard at your own risk.[/dim]")
+        raise typer.Exit(1)
+    elif env.tier == EnvironmentTier.CONSTRAINED:
+        console.print(f"[bold yellow]{env.title}[/bold yellow]")
 
     preset = MODEL_PRESETS[target_key]
     if catalog.is_installed(target_key):
@@ -245,224 +364,58 @@ def model_download(
 
 
 @app.command()
-def ask(
-    prompt: str = typer.Argument(..., help="Prompt or query to test against local AI"),
-    system: Optional[str] = typer.Option("You are a helpful and expert AI assistant.", "--system", "-s", help="System prompt"),
-    cloud: bool = typer.Option(False, "--cloud", "-c", help="Force cloud routing (with auto-failover to local SkyBrain on quota/overload)"),
-    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="Custom AI API address (e.g. http://host:port/v1 or http://ai.corp.internal:8000)"),
-    api_key: Optional[str] = typer.Option(None, "--api-key", "-k", help="Cloud or custom API key/token"),
-    api_model: Optional[str] = typer.Option(None, "--api-model", "-m", help="Target model identifier for custom/cloud API"),
-    context: bool = typer.Option(True, "--context/--no-context", help="Include recent conversation context"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show routing decision details"),
+def query(
+    prompt: str = typer.Argument(..., help="Prompt to run directly on local SLM"),
+    system: Optional[str] = typer.Option(None, "--system", "-s", help="Optional system prompt"),
+    temperature: float = typer.Option(0.3, "--temperature", "-t", help="Sampling temperature"),
+    max_tokens: int = typer.Option(1024, "--max-tokens", "-m", help="Maximum output tokens"),
 ):
-    """Sends a query with intelligent local/cloud routing via the SkyBrain Gateway.
+    """Directly queries the local on-device SLM with zero cloud network calls."""
+    active_key = catalog.get_active_key()
+    if not catalog.is_installed(active_key):
+        console.print(f"[bold yellow]⚠️ Model '{active_key}' not installed. Auto-downloading...[/bold yellow]")
+        _download_model_with_progress(active_key)
 
-    By default, uses rule-based classification to determine whether to
-    process locally (zero cloud tokens) or escalate to cloud/custom LLM.
-    If Custom/Cloud API experiences Quota Exceeded (429) or Overloaded (503),
-    the Circuit Breaker automatically fails over to on-device SkyBrain.
-    """
-    import os
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
 
-    # If user provided a custom API URL on the CLI
-    if api_url:
-        os.environ["CUSTOM_API_URL"] = api_url.strip()
-        if verbose:
-            console.print(f"[dim]🌐 Using Custom AI Address: {api_url}[/dim]")
+    from skybrain.server.supervisor import DaemonSupervisor
+    import httpx
 
-    if api_model:
-        clean_model = api_model.strip()
-        os.environ["CUSTOM_API_MODEL"] = clean_model
-        os.environ["GEMINI_MODEL"] = clean_model
-
-    # If user provided an API key on the CLI, auto-detect provider format
-    if api_key:
-        clean_key = api_key.strip()
-        if api_url:
-            os.environ["CUSTOM_API_KEY"] = clean_key
-        elif clean_key.startswith("AIzaSy"):
-            os.environ["GEMINI_API_KEY"] = clean_key
-            if verbose:
-                console.print("[dim]🔑 Detected Google Gemini API Key[/dim]")
-        elif clean_key.startswith("sk-ant-"):
-            os.environ["ANTHROPIC_API_KEY"] = clean_key
-            if verbose:
-                console.print("[dim]🔑 Detected Anthropic Claude API Key[/dim]")
-        elif clean_key.startswith("sk-"):
-            os.environ["OPENAI_API_KEY"] = clean_key
-            if verbose:
-                console.print("[dim]🔑 Detected OpenAI API Key[/dim]")
-        else:
-            # Default to Gemini if unsure
-            os.environ["GEMINI_API_KEY"] = clean_key
-
-    from skybrain.gateway import (
-        SmartRoutingProxy,
-        IntentClassifier,
-        ConversationHistory,
-        RoutingStats,
-    )
-
-    classifier = IntentClassifier()
-    history = ConversationHistory()
-    stats = RoutingStats()
-    proxy = SmartRoutingProxy(classifier=classifier, history=history, stats=stats)
-
-    classification = classifier.classify(prompt)
-
-    if verbose:
-        console.print(f"[dim]🧠 Routing Decision: target={classification.target.value}, "
-                       f"confidence={classification.confidence:.0%}, "
-                       f"rule={classification.matched_rule or 'none'}, "
-                       f"reason={classification.reason}[/dim]")
-
-    # Helper: local executor via daemon or in-process fallback
-    def _local_exec(messages, system_prompt, temperature, max_tokens):
-        import httpx
-        DaemonSupervisor.ensure_daemon_alive()
-        if DaemonSupervisor.is_running():
-            url = f"http://{settings.host}:{settings.port}/v1/chat/completions"
+    content = None
+    with console.status(f"[bold cyan]Running on-device inference ({active_key})...[/bold cyan]"):
+        if DaemonSupervisor.check_health_fast():
             try:
-                resp = httpx.post(
-                    url,
-                    json={
-                        "model": catalog.get_active_key(),
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                    timeout=60.0
-                )
+                url = f"http://{settings.host}:{settings.port}/v1/chat/completions"
+                payload = {
+                    "model": active_key,
+                    "messages": messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                resp = httpx.post(url, json=payload, timeout=120.0)
                 if resp.status_code == 200:
-                    return resp.json()["choices"][0]["message"]["content"]
+                    content = resp.json()["choices"][0]["message"]["content"]
             except Exception as e:
-                console.print(f"[yellow]⚠️ Daemon call failed ({e}), falling back to direct engine...[/yellow]")
+                logger.debug(f"Daemon HTTP query failed, falling back to direct engine: {e}")
 
-        active_key = catalog.get_active_key()
-        if not catalog.is_installed(active_key):
-            console.print(f"[bold yellow]⚠️ Model '{active_key}' not installed. Downloading before query...[/bold yellow]")
-            _download_model_with_progress(active_key)
+        if content is None:
+            from skybrain.server.app import get_llm, close_llm
+            try:
+                llm = get_llm()
+                resp = llm.create_chat_completion(
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                content = resp["choices"][0]["message"]["content"]
+            finally:
+                close_llm()
 
-        from skybrain.server.app import get_llm
-        llm = get_llm()
-        combined = f"{system_prompt or ''}\n\n[User]\n{prompt}"
-        resp = llm.create_chat_completion(
-            messages=[{"role": "user", "content": combined}],
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-        return resp["choices"][0]["message"]["content"]
-
-    # Execute through SmartRoutingProxy
-    with console.status("[bold cyan]Processing query via SkyBrain Gateway...[/bold cyan]"):
-        result = proxy.route_and_generate(
-            prompt=prompt,
-            system_prompt=system,
-            force_cloud=cloud,
-            include_context=context,
-            local_fallback_executor=_local_exec,
-        )
-
-    # Display response with clear processing engine and version badge
-    engine_str = result.get("engine", "SkyBrain")
-    is_fail = result.get("is_failover", False)
-
-    if is_fail:
-        badge_style = "bold yellow"
-        icon = "🛡️"
-    elif "Cloud" in engine_str:
-        badge_style = "bold blue"
-        icon = "☁️"
-    elif "Custom" in engine_str:
-        badge_style = "bold magenta"
-        icon = "🌐"
-    else:
-        badge_style = "bold green"
-        icon = "⚡"
-
-    console.print(f"\n[{badge_style}][{icon} Processing Engine: {engine_str}][/{badge_style}]")
-    console.print(f"[bold cyan]🤖 Response:[/bold cyan]\n{result.get('content')}\n")
-
-    # Clean fast-exit to avoid upstream llama.cpp Metal teardown assertion crash
-    # See: https://github.com/ggml-org/llama.cpp/pull/17869
-    import os
-    os._exit(0)
-
-
-@config_app.command(name="list")
-def config_list():
-    """Lists current Cloud LLM endpoints, models, and API key status."""
-    import os
-
-    table = Table(title="⚙️ SkyBrain Gateway & Cloud Configuration", header_style="bold cyan")
-    table.add_column("Property", style="bold")
-    table.add_column("Value")
-    table.add_column("Source", style="dim")
-
-    def _mask_key(key: Optional[str]) -> str:
-        if not key:
-            return "[dim]Not set[/dim]"
-        if len(key) <= 8:
-            return "****"
-        return f"{key[:4]}...{key[-4:]}"
-
-    # Gemini
-    gem_key = settings.gemini_api_key or os.environ.get("GEMINI_API_KEY")
-    gem_src = "env: GEMINI_API_KEY" if os.environ.get("GEMINI_API_KEY") else ("config.json" if settings.gemini_api_key else "none")
-    table.add_row("Gemini API Key", _mask_key(gem_key), gem_src)
-
-    gem_endpoint = os.environ.get("GEMINI_ENDPOINT") or settings.gemini_endpoint
-    table.add_row("Gemini Endpoint", gem_endpoint, "custom" if os.environ.get("GEMINI_ENDPOINT") else "default")
-
-    gem_model = os.environ.get("GEMINI_MODEL") or settings.gemini_model
-    table.add_row("Gemini Model", gem_model, "custom" if os.environ.get("GEMINI_MODEL") else "default")
-
-    # OpenAI
-    oa_key = settings.openai_api_key or os.environ.get("OPENAI_API_KEY")
-    oa_src = "env: OPENAI_API_KEY" if os.environ.get("OPENAI_API_KEY") else ("config.json" if settings.openai_api_key else "none")
-    table.add_row("OpenAI API Key", _mask_key(oa_key), oa_src)
-    table.add_row("OpenAI Base URL", settings.openai_base_url, "default")
-
-    # Claude
-    cl_key = settings.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-    cl_src = "env: ANTHROPIC_API_KEY" if os.environ.get("ANTHROPIC_API_KEY") else ("config.json" if settings.anthropic_api_key else "none")
-    table.add_row("Claude API Key", _mask_key(cl_key), cl_src)
-
-    # Custom API URL
-    custom_url = settings.custom_api_url or os.environ.get("CUSTOM_API_URL")
-    custom_src = "env: CUSTOM_API_URL" if os.environ.get("CUSTOM_API_URL") else ("config.json" if settings.custom_api_url else "none")
-    table.add_row("Custom AI Address (URL)", custom_url or "[dim]Not set[/dim]", custom_src)
-
-    # SSL / CA
-    table.add_row("SSL Verification", "Strict (Verified)" if settings.ssl_verify else "Insecure (Bypassed)", "setting")
-    if settings.ca_bundle:
-        table.add_row("Custom CA Bundle", settings.ca_bundle, "setting")
-
-    console.print(table)
-    console.print("\n[dim]Set values with: 'skybrain config set <key> <value>'[/dim]")
-    console.print("[dim]Supported keys: custom_api_url, custom_api_key, custom_api_model, gemini_api_key, gemini_endpoint, gemini_model, openai_api_key, openai_base_url, anthropic_api_key[/dim]")
-
-
-@config_app.command(name="set")
-def config_set(
-    key: str = typer.Argument(..., help="Configuration key (e.g. gemini_api_key, gemini_endpoint, gemini_model)"),
-    value: str = typer.Argument(..., help="Configuration value")
-):
-    """Persistently sets a configuration option in ~/.skybrain/config.json."""
-    import json
-    config_file = settings.home_dir / "config.json"
-    data = {}
-    if config_file.exists():
-        try:
-            data = json.loads(config_file.read_text(encoding="utf-8"))
-        except Exception:
-            data = {}
-
-    clean_key = key.strip().lower()
-    data[clean_key] = value.strip()
-    config_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    console.print(f"[bold green]✔ Config saved:[/bold green] [cyan]{clean_key}[/cyan] = [dim]{value[:6]}...[/dim] (in {config_file})")
+    console.print(f"\n[bold green][⚡ On-Device SLM: {active_key}][/bold green]")
+    console.print(f"[cyan]{content}[/cyan]\n")
 
 
 @app.command(name="review")
@@ -471,10 +424,9 @@ def review_cmd(
     rounds: int = typer.Option(1, "--rounds", "-r", help="Voting rounds per lens (1 for fast, 3 for consensus)"),
     verify: bool = typer.Option(True, "--verify/--no-verify", help="Run Chain-of-Thought verification on findings"),
     use_cache: bool = typer.Option(True, "--cache/--no-cache", help="Use content-hash result cache"),
-    html: bool = typer.Option(True, "--html/--no-html", help="Generate standalone interactive HTML report"),
-    output_html: Optional[str] = typer.Option(None, "--html-out", help="Custom output path for HTML report"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output machine-parsable JSON for Lead LLM cross-checking"),
 ):
-    """Executes Multi-Lens Code Review with CleanCode, Architecture, Security, and Performance lenses."""
+    """Executes Multi-Lens Pre-Screening Review and outputs findings optimized for Lead LLM cross-checking."""
     from pathlib import Path
     from skybrain.review.engine import ReviewEngine
     from skybrain.review.lenses.clean_code import CleanCodeLens
@@ -500,21 +452,20 @@ def review_cmd(
         console.print("[yellow]⚠️ No reviewable source files found.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]🔍 SkyBrain Multi-Lens Code Review[/bold cyan]")
-    console.print(f"[dim]Target: {target} ({len(files_to_review)} files) | Rounds: {rounds} | Verification: {verify}[/dim]")
-    console.print("[dim]Active Lenses: CleanCode, CleanArchitecture, Security, Performance, AIConduct[/dim]")
+    if not json_output:
+        console.print(f"\n[bold cyan]🔍 SkyBrain Multi-Lens Code Review[/bold cyan]")
+        console.print(f"[dim]Target: {target} ({len(files_to_review)} files) | Rounds: {rounds} | Verification: {verify}[/dim]")
+        console.print("[dim]Active Lenses: CleanCode, CleanArchitecture, Security, Performance, AIConduct[/dim]")
 
     # ── Pre-flight System & Memory Guard ──
     from skybrain.core.monitor import SystemGuard, MemoryStatusLevel
-    import os
-    has_cloud = bool(settings.gemini_api_key or settings.openai_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY"))
-    mem_eval = SystemGuard.evaluate(has_cloud_fallback=has_cloud)
+    mem_eval = SystemGuard.evaluate(has_cloud_fallback=False)
     if mem_eval.status == MemoryStatusLevel.CRITICAL and not mem_eval.allowed:
         console.print(f"\n[bold red]{mem_eval.message}[/bold red]\n")
         raise typer.Exit(1)
-    elif mem_eval.status == MemoryStatusLevel.WARNING:
+    elif mem_eval.status == MemoryStatusLevel.WARNING and not json_output:
         console.print(f"[yellow]⚠️ {mem_eval.message}[/yellow]\n")
-    else:
+    elif not json_output:
         console.print(f"[dim]🧠 Memory Guard: Safe ({mem_eval.available_gb:.1f} GB available)[/dim]\n")
 
     # ── Daemon Auto-Healing Check ──
@@ -537,30 +488,44 @@ def review_cmd(
 
     total_lens_steps = len(files_to_review) * len(lenses)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]{task.description}[/bold cyan]"),
-        BarColumn(bar_width=35),
-        TaskProgressColumn(),
-        MofNCompleteColumn(),
-        TextColumn("•"),
-        TimeElapsedColumn(),
-        TextColumn("• ETA:"),
-        TimeRemainingColumn(),
-        console=console,
-    ) as progress:
-        task_id = progress.add_task("Starting inspection...", total=total_lens_steps)
-
-        def _on_progress(desc: str, advance_amt: float):
-            progress.update(task_id, description=desc, advance=advance_amt)
-
+    if json_output or not console.is_terminal:
         report = engine.review(
             file_paths=files_to_review,
             verify=verify,
             voting_rounds=rounds,
             use_cache=use_cache,
-            progress_callback=_on_progress,
         )
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}[/bold cyan]"),
+            BarColumn(bar_width=35),
+            TaskProgressColumn(),
+            MofNCompleteColumn(),
+            TextColumn("•"),
+            TimeElapsedColumn(),
+            TextColumn("• ETA:"),
+            TimeRemainingColumn(),
+            console=console,
+        ) as progress:
+            task_id = progress.add_task("Starting inspection...", total=total_lens_steps)
+
+            def _on_progress(desc: str, advance_amt: float):
+                progress.update(task_id, description=desc, advance=advance_amt)
+
+            report = engine.review(
+                file_paths=files_to_review,
+                verify=verify,
+                voting_rounds=rounds,
+                use_cache=use_cache,
+                progress_callback=_on_progress,
+            )
+
+    if json_output:
+        import json
+        console.print(json.dumps(report.to_lead_llm_payload(), indent=2, ensure_ascii=False))
+        import os
+        os._exit(0)
 
     # Render Report Table
     table = Table(title="📋 SkyBrain Multi-Lens Review Findings", header_style="bold magenta")
@@ -594,26 +559,170 @@ def review_cmd(
             )
 
         console.print(table)
-        console.print(f"\n[dim]Summary: Total {len(findings)} findings across {len(report.files_reviewed)} files reviewed in {report.total_duration_seconds:.2f}s[/dim]")
-
-    if html:
-        from skybrain.review.html_report import generate_html_report
-        out_p = Path(output_html).resolve() if output_html else None
-        html_file = generate_html_report(report, target_label=str(target), output_path=out_p)
-        console.print(f"\n[bold green]📄 Interactive HTML Report saved:[/bold green] [cyan]file://{html_file}[/cyan]")
-        console.print(f"[dim]💡 Open in browser with: [bold]open \"{html_file}\"[/bold][/dim]\n")
+        console.print(f"\n[bold green]Health Score: {report.health_score}/100[/bold green] | [dim]Summary: Total {len(findings)} findings across {len(report.files_reviewed)} files in {report.total_duration_seconds:.2f}s[/dim]")
+        console.print("[dim]💡 Tip: Use 'skybrain review <path> --json' to export structured payload for Lead LLM (Gemini/Claude) cross-check.[/dim]\n")
 
     import os
     os._exit(0)
 
 
-@app.command()
-def mcp():
-    """Starts the Model Context Protocol (MCP) server for VS Code, Cursor, Cline, and Claude Desktop."""
+@mcp_app.callback(invoke_without_command=True)
+def mcp_callback(ctx: typer.Context):
+    """Starts the Model Context Protocol (MCP) server or manages MCP integration."""
+    if ctx.invoked_subcommand is None:
+        from skybrain.mcp.server import main as mcp_main
+        mcp_main()
+
+
+@mcp_app.command(name="run")
+def mcp_run():
+    """Starts the Model Context Protocol (MCP) server in stdio mode."""
     from skybrain.mcp.server import main as mcp_main
     mcp_main()
 
 
+@mcp_app.command(name="tools")
+def mcp_tools():
+    """Lists all available SkyBrain MCP tools and parameters."""
+    from skybrain.mcp.server import TOOLS
+    table = Table(title="🛠️ SkyBrain MCP Tools (stdio)", header_style="bold cyan")
+    table.add_column("Tool Name", style="bold green", no_wrap=True)
+    table.add_column("Description")
+    table.add_column("Required Args", style="dim")
+
+    for t in TOOLS:
+        schema = t.get("inputSchema", {})
+        req = ", ".join(schema.get("required", [])) or "(none)"
+        table.add_row(t["name"], t["description"], req)
+
+    console.print(table)
+
+
+@mcp_app.command(name="setup")
+def mcp_setup():
+    """Prints copy-paste ready MCP configuration for Claude Code and Antigravity."""
+    import json
+    console.print("[bold cyan]🚀 SkyBrain MCP Integration Setup[/bold cyan]\n")
+
+    console.print("[bold green]1. Anthropic Claude CLI (Claude Code):[/bold green]")
+    console.print("Register SkyBrain directly in Claude Code with this single command:")
+    console.print("  [bold yellow]claude mcp add skybrain -- uv tool run skybrain-mcp[/bold yellow]\n")
+
+    console.print("[bold green]2. Antigravity IDE / Cursor / Claude Desktop:[/bold green]")
+    config = {
+        "mcpServers": {
+            "skybrain": {
+                "command": "uv",
+                "args": ["tool", "run", "skybrain-mcp"]
+            }
+        }
+    }
+    console.print("Add to your MCP configuration (e.g. ~/.gemini/antigravity-ide/mcp_config.json or Claude settings):")
+    console.print(f"[dim]{json.dumps(config, indent=2)}[/dim]\n")
+    console.print("[dim]💡 SkyBrain MCP provides on-device zero-cost translation, log summarization, code review, and consensus.[/dim]")
+
+
+# ==============================================================================
+# Document Intelligence & Multi-Project CAS Commands
+# ==============================================================================
+
+@doc_app.command(name="add")
+def doc_add(
+    path: str = typer.Argument(..., help="Directory path to index"),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="Project name (defaults to folder name)"),
+):
+    """Adds a directory as a project and scans all documents with CAS deduplication."""
+    from skybrain.store.manager import DocumentManager
+    manager = DocumentManager()
+
+    console.print(f"[bold cyan]🔍 Scanning and indexing project directory:[/bold cyan] {path}")
+    try:
+        stats = manager.add_project(path, name=name)
+        console.print(f"[bold green]✅ Successfully indexed project:[/bold green] [bold yellow]{stats['project_name']}[/bold yellow] (ID: {stats['project_id']})")
+        table = Table(title="📊 Indexing Summary", header_style="bold cyan")
+        table.add_column("Metric", style="bold")
+        table.add_column("Count", style="green")
+        table.add_row("Scanned Files", str(stats["scanned_files"]))
+        table.add_row("New Files Added", str(stats["added_files"]))
+        table.add_row("Reused (Deduplicated)", str(stats["reused_files"]))
+        table.add_row("Updated Files", str(stats["updated_files"]))
+        table.add_row("New Chunks Stored", str(stats["new_chunks"]))
+        console.print(table)
+    except Exception as e:
+        console.print(f"[bold red]❌ Failed to add project:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
+@doc_app.command(name="sync")
+def doc_sync(
+    project: Optional[str] = typer.Option(None, "--project", "-p", help="Specific project ID to sync (defaults to all)"),
+):
+    """Performs incremental sync for registered projects."""
+    from skybrain.store.manager import DocumentManager
+    manager = DocumentManager()
+
+    console.print(f"[bold cyan]🔄 Running incremental sync...[/bold cyan]")
+    results = manager.sync_project(project)
+    if not results:
+        console.print("[yellow]No registered projects found to sync.[/yellow]")
+        return
+
+    for stats in results:
+        console.print(f"\n[bold green]📁 Project:[/bold green] {stats['project_name']} (Scanned: {stats['scanned_files']}, Added: {stats['added_files']}, Reused: {stats['reused_files']}, Updated: {stats['updated_files']})")
+
+
+@doc_app.command(name="list")
+def doc_list():
+    """Lists all registered projects and indexing statistics."""
+    from skybrain.store.manager import DocumentManager
+    manager = DocumentManager()
+
+    projects = manager.list_projects()
+    if not projects:
+        console.print("[yellow]No projects registered yet. Use `skybrain doc add <path>` to add one.[/yellow]")
+        return
+
+    table = Table(title="📚 Registered Projects & Knowledge Hub", header_style="bold cyan")
+    table.add_column("Project ID", style="bold yellow")
+    table.add_column("Name", style="bold")
+    table.add_column("Active Files", justify="right", style="green")
+    table.add_column("Root Path", style="dim")
+    table.add_column("Registered At", style="dim")
+
+    for p in projects:
+        table.add_row(p["id"], p["name"], str(p["active_files"]), p["root_path"], str(p["created_at"]))
+
+    console.print(table)
+
+
+@doc_app.command(name="search")
+def doc_search(
+    query: str = typer.Argument(..., help="Search query"),
+    project: Optional[str] = typer.Option(None, "--project", "-p", help="Project ID to filter by"),
+    limit: int = typer.Option(5, "--limit", "-l", help="Maximum number of results"),
+):
+    """Searches document chunks using SQLite FTS5 and project lexicon expansion."""
+    from skybrain.store.manager import DocumentManager
+    manager = DocumentManager()
+
+    console.print(f"[bold cyan]🔎 Searching knowledge base for:[/bold cyan] '{query}'" + (f" in project [yellow]{project}[/yellow]" if project else " (cross-project)"))
+    results = manager.search(query, project_id=project, limit=limit)
+
+    if not results:
+        console.print("[yellow]No matching documents found.[/yellow]")
+        return
+
+    for idx, r in enumerate(results, start=1):
+        console.print(f"\n[bold green]#{idx} [{r['project_id']}] {r['relative_path']}[/bold green] (Rank: {r['rank']:.2f})")
+        if r["heading_hierarchy"]:
+            console.print(f"   [dim cyan]📍 {r['heading_hierarchy']}[/dim cyan]")
+        snippet = r["chunk_text"][:300].replace("\n", " ")
+        if len(r["chunk_text"]) > 300:
+            snippet += "..."
+        console.print(f"   {snippet}")
+
+
 if __name__ == "__main__":
     app()
+
 

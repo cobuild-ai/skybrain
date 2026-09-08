@@ -23,6 +23,21 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 
 </div>
 
+
+---
+
+## 💡 Why SkyBrain? (5 Key Architectural Advantages)
+
+> **"Unleash the full power of your Mac's dormant Metal GPU for maximum developer velocity—with zero cloud token bills and absolute data privacy."**
+
+| Key Advantage | Architectural Detail & Mechanism | Business & Engineering Impact |
+| :--- | :--- | :--- |
+| 💰 **85%+ Cloud Token Savings** | Offloads repetitive bulk tasks (multi-language translations, boilerplate schemas, unit tests, 50+ line build log summaries) directly to local SLMs (Qwen 3.8 / Gemma) | Drastically reduces operational API costs for premium cloud LLMs (Claude Sonnet, Gemini 1.5 Pro) |
+| 🔒 **100% Air-Gapped Data Privacy** | Zero outbound network transmission. Proprietary source code, system logs, environment secrets, and intellectual property never leave your local machine | Complies with strict enterprise security and data privacy mandates with complete peace of mind |
+| ⚡ **Zero-Docker Pure Metal Speed** | Bypasses slow Docker virtualization layers; runs directly on macOS, linking unified RAM directly to Apple Silicon (M1–M4) Metal GPU cores (`-DGGML_METAL=on`) | Zero-copy memory architecture and ultra-low latency token streaming right out of the box |
+| 🛡️ **Host RAM Protection & Self-Healing** | Pre-flight memory guard intercepts intensive inference when free RAM drops below 2.5 GB; auto-healing supervisor revives downed daemons in under 500ms via 150ms heartbeat pings | Eliminates macOS OOM freezes and provides an unyielding, resilient local circuit breaker |
+| 🔍 **5-Lens Quality Guard & Zero-Fake** | Analyzes code across Clean Code, Clean Architecture, Security, Performance, plus our specialized `AI Conduct` lens that flags **fake hardcoded mocks, hallucinated APIs, and silent exception swallowing** | Catches subtle AI-generated anti-patterns before they reach production, guaranteeing code integrity |
+
 ---
 
 ## 📊 Release Status
@@ -62,15 +77,16 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 - **Chain-of-Verification (CoVe):** Every detected finding is cross-verified by an independent on-device verification pass to eliminate false positives.
 - **Tier-1 Content Hash Disk Cache:** Instant sub-second results for unchanged files using SHA-256 caching.
 
-### 📊 Standalone Interactive HTML Reports
-- **Single-File Zero-Dependency:** Self-contained HTML report with modern dark-mode glassmorphism styling.
-- **Real-Time Interactive Filtering:** Filter findings by lens, severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), or dynamic search query.
+### 🎯 Lead-LLM Cross-Check Structured Data Payload
+- **Optimized for Lead LLMs (Cloud AI):** Instead of heavy browser HTML reports, SkyBrain outputs structured JSON (`to_lead_llm_payload()`) containing candidate findings (`PRE-XX`), rule justifications, 2/3 consensus rates, and tailored cross-check prompts for immediate verification by Cloud Gemini/Claude.
+- **85%+ Token Overhead Reduction:** Replaces 25KB+ HTML boilerplate with compact <3KB JSON payloads, preventing context saturation in orchestrator agents.
 - **Code Health Score (0–100):** Algorithmic penalty-weighted score assessing overall codebase health.
-- **One-Click Suggestion Copy:** Instant clipboard export for code fixes.
 
-### 🔀 Local Routing Proxy & Circuit Breaker (Local Gateway)
-- **Zero-Drop Failover:** Routes requests to cloud LLMs (Gemini, Claude, OpenAI) while continuously monitoring quotas.
-- **Instant Local Recovery:** Automatically flips to local on-device SLM on HTTP 429 (Rate Limit / Quota Exceeded) or 503 (Overloaded) without dropping user queries.
+### 📚 Multi-Project Document Intelligence & Materialized Cache Hub
+- **100% On-Device Sovereign RAG:** Air-gapped indexing and retrieval across Markdown, TXT, and PDF documents with zero external network transmission.
+- **Content-Addressed Storage (CAS Deduplication):** Separates physical content (SHA-256) from logical paths. Renaming/moving files incurs 0s re-embedding cost, and parent folder imports reuse existing sub-project files with 0% disk waste.
+- **Hybrid Lexical & Domain Expansion:** High-speed SQLite FTS5 (BM25) search coupled with automated project domain lexicon harvesting (`3-Tier`, `Gate 1/2/3`, `PAD`, `Zero-Fake`).
+- **Read-Only Source Principle:** Never touches or mutates original repository documents; maintains an isolated materialized cache in `~/.skybrain/knowledge.db` (WAL mode).
 
 ---
 
@@ -91,17 +107,17 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Dev as 👨‍💻 Developer / IDE (MCP)
-    participant CLI as 🖥️ SkyBrain CLI (`uv tool`)
-    participant Guard as 🧠 Pre-flight Memory Guard
+    actor Dev as 👨‍💻 Developer / Lead Agent (Cloud LLM)
+    participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
+    participant Guard as 🧠 4-Tier Hardware Diagnostic Guard
     participant Super as 🩺 Supervisor (Auto-Heal)
     participant Engine as 🔍 ReviewEngine (5 Lenses)
     participant Daemon as ⚡ On-Device Daemon (Metal SLM)
-    participant HTML as 📊 HTML Report Generator
+    participant Lead as 👑 Lead LLM (Gemini/Claude)
 
-    Dev->>CLI: skybrain review ./src --html
-    CLI->>Guard: Evaluate macOS Unified Memory
-    Guard-->>CLI: Memory Safe (6.5 GB available)
+    Dev->>CLI: skybrain review ./src --json
+    CLI->>Guard: Evaluate macOS Unified Memory & Metal acceleration
+    Guard-->>CLI: Memory Safe (6.5 GB available / OPTIMAL)
     CLI->>Super: check_health_fast()
     alt Daemon Down
         Super->>Super: Auto-heal daemon in background
@@ -113,8 +129,9 @@ sequenceDiagram
         Engine->>Daemon: Chain-of-Verification (Fact-check findings)
         Daemon-->>Engine: Verified findings
     end
-    Engine->>HTML: Generate interactive standalone HTML
-    HTML-->>Dev: Saved to ~/.skybrain/reports/review_report_*.html
+    Engine->>CLI: Return to_lead_llm_payload() compact JSON
+    CLI->>Lead: Forward PRE-XX candidate findings & verification prompt
+    Lead-->>Dev: Mutual fact-checking against active code & final action
 ```
 
 ---
@@ -138,7 +155,7 @@ CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable .
 ```bash
 ./setup.sh
 ```
-`setup.sh` automatically checks Apple Silicon hardware, compiles Metal bindings, runs 111 unit tests, registers the `skybrain` global CLI, and generates `.vscode/mcp.json` for IDE integration.
+`setup.sh` automatically performs 4-tier hardware assessment, compiles Metal bindings, runs 94 unit tests, registers the `skybrain` global CLI, and generates `.vscode/mcp.json` for IDE integration.
 
 ### 3. Common CLI Operations
 ```bash
@@ -148,14 +165,26 @@ skybrain start
 # Check real-time status & host memory guard
 skybrain status
 
-# Execute 5-Lens Multi-Pass Code Review on a file or directory
-skybrain review ./skybrain/core/config.py
+# Check model catalog with real-time 4-tier suitability (🟢/⚠️/🛑) and recommended GPU layers
+skybrain model list
 
-# Ask local on-device SLM a zero-token question
-skybrain ask "Explain Clean Architecture Dependency Inversion Principle"
+# Execute 5-Lens Multi-Pass Code Review on a file or directory (supports -j for Lead LLM JSON)
+skybrain review ./skybrain/core/config.py -j
 
-# Ask with cloud escalation and automatic local circuit breaker fallback
-skybrain ask "Draft an architectural refactoring plan" --cloud
+# Direct on-device SLM query with zero cloud token cost ($0 Token)
+skybrain query "Explain Clean Architecture Dependency Inversion Principle"
+
+# Index a directory into multi-project knowledge base with CAS deduplication
+skybrain doc add ./00-governance --name "OSS-Governance"
+
+# Search knowledge base with SQLite FTS5 & domain lexicon expansion
+skybrain doc search "3-Tier Pipeline" --project oss-governance
+
+# List all registered projects and active file statistics
+skybrain doc list
+
+# Incremental sync for changed/modified files
+skybrain doc sync
 
 # Stop background daemon
 skybrain stop
@@ -165,13 +194,45 @@ skybrain stop
 
 ## 💻 Model Context Protocol (MCP) Integration
 
-SkyBrain includes a built-in Model Context Protocol (MCP) server, instantly connecting your local Apple Silicon SLM to **Cursor, VS Code (Cline / Roo Code), Claude Desktop, and Antigravity IDE**:
+SkyBrain provides a first-class, standard Model Context Protocol (MCP) server (`skybrain-mcp`), allowing **Antigravity IDE, Anthropic Claude CLI (Claude Code), Cursor, and VS Code** to seamlessly leverage local Apple Silicon Metal SLM intelligence as high-speed worker tools:
 
-* **Available MCP Tools**:
-  * `skybrain_expert_consensus`: Run 5-Lens multi-pass code review directly within your IDE.
-  * `skybrain_query`: Query on-device Metal SLM with 0 cloud token cost.
-  * `skybrain_translate`: Instant offline translation across 12 languages.
-  * `skybrain_summarize_logs`: Fast offline summarization of large build/runtime logs.
+### 🚀 1-Command Setup
+
+```bash
+# Register SkyBrain in Anthropic Claude CLI (Claude Code)
+claude mcp add skybrain -- uv tool run skybrain-mcp
+
+# Or check all available MCP tools directly from CLI
+skybrain mcp tools
+skybrain mcp setup
+```
+
+### 🛠️ Available MCP Tools
+
+| MCP Tool | Description | Target Use Case |
+| :--- | :--- | :--- |
+| 🔍 `skybrain_code_review` | Multi-Lens semantic review (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`) | Automatic PR & file audits in IDE |
+| ⚖️ `skybrain_expert_consensus` | 2/3 majority consensus multi-pass evaluation across 6 specialized perspectives | High-rigor consensus verification |
+| ⚡ `skybrain_query` | Direct local SLM query with zero cloud token cost (supports multimodal vision) | Quick on-device code generation |
+| 🌐 `skybrain_translate` | Offline multi-lingual translation across 12 languages | Translation & docs synchronization |
+| 📜 `skybrain_summarize_logs` | High-throughput noise filtering and root-cause analysis for 50+ line logs | Zero-leak build log debugging |
+| 🩺 `skybrain_status` | Real-time daemon status, active model, and host memory guard level | Hardware and daemon readiness |
+| 📚 `skybrain_doc_search` | Multi-project SQLite FTS5 (BM25) search with project domain lexicon expansion | Instant zero-cloud project context retrieval |
+| 📥 `skybrain_doc_import` | Index a local directory into CAS knowledge base with zero-waste deduplication | Multi-project document registration |
+| 📋 `skybrain_doc_list` | List registered projects, document counts, and indexing status | Knowledge hub overview |
+
+### ⚙️ IDE Configuration (`mcp_config.json` / `settings.json`)
+
+```json
+{
+  "mcpServers": {
+    "skybrain": {
+      "command": "uv",
+      "args": ["tool", "run", "skybrain-mcp"]
+    }
+  }
+}
+```
 
 ---
 

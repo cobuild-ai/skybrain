@@ -23,6 +23,21 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 
 </div>
 
+
+---
+
+## 💡 왜 SkyBrain인가? (SkyBrain의 5대 핵심 이점)
+
+> **"클라우드 AI의 막대한 토큰 비용과 데이터 유출 걱정 없이, 내 맥북의 잠자는 Metal GPU를 100% 깨워 최고의 생산성을 발휘합니다."**
+
+| 핵심 이점 | 세부 가치 및 작동 방식 | 기대 효과 |
+| :--- | :--- | :--- |
+| 💰 **클라우드 토큰 85%+ 절감** | 다국어 번역, 보일러플레이트 생성, 50줄 이상의 대용량 빌드 로그 1차 요약 등 단순 반복 작업을 로컬 경량 SLM(Qwen 3.8/Gemma)에 전량 위임 | 비싼 클라우드 LLM(Gemini 1.5 Pro, Claude Sonnet) 호출 비용을 획기적으로 축소 |
+| 🔒 **100% 데이터 주권 & 보안** | 외부 인터넷 통신 0건(Air-Gapped) 원칙. 민감한 내부 소스코드, 시스템 로그, 시크릿 키가 로컬 머신 외부로 단 1바이트도 유출되지 않음 | 기업 보안 및 컴플라이언스 기준 완벽 충족, 안심하고 로컬 감사 수행 |
+| ⚡ **제로 도커 순수 Metal 속도** | 무거운 Docker 가상화 머신 없이 macOS 네이티브 환경에서 Apple Silicon(M1~M4) 통합 메모리와 GPU 코어를 직결 (`-DGGML_METAL=on`) | 메모리 복사 오버헤드 0ms, 초저지연 토큰 스트리밍 서빙 실현 |
+| 🛡️ **호스트 메모리 보호 & 자율 복구** | 가용 RAM 2.5GB 미만 시 과중한 연산을 사전 차단(Pre-flight Guard)하여 맥북 멈춤 방지, 데몬 비정상 종료 시 150ms 핑 감지로 500ms 내 자동 재기동 | 무중단 서킷 브레이커 환경 제공 및 호스트 시스템 안정성 100% 보장 |
+| 🔍 **5대 전문 렌즈 & Zero-Fake 감사** | Clean Code, Clean Architecture, Security, Performance와 더불어 **가짜 mock 하드코딩, 환각 API, 은폐된 예외**를 잡아내는 `AI Conduct` 렌즈 탑재 | AI 생성 코드의 치명적 결함을 사전 차단하여 상용 수준의 코드 무결성 확보 |
+
 ---
 
 ## 📊 릴리즈 상태 (Release Status)
@@ -62,14 +77,16 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 - **팩트 검증(Chain-of-Verification):** 검출된 모든 결함은 독립 검증 모델을 거쳐 허위 경고(False Positive)를 철저히 제거합니다.
 - **Tier-1 콘텐츠 해시 디스크 캐시:** SHA-256 기반 캐싱으로 변경되지 않은 파일은 0.1초 만에 결과를 즉시 반환합니다.
 
-### 📊 스탠드얼론 인터랙티브 HTML 리포트
-- **단일 파일 자립형 구조:** 외부 라이브러리나 서버 없이 브라우저에서 바로 열람할 수 있는 다크모드 글래스모피즘 리포트 자동 생성.
-- **실시간 다차원 필터링:** 렌즈별(`AI Conduct`, `Clean Code` 등), 심각도별(`CRITICAL`, `HIGH` 등) 실시간 필터 및 동적 키워드 검색 지원.
+### 🎯 Lead-LLM 교차 검증 전용 구조화 데이터 페이로드
+- **거대 사령탑 LLM(Cloud AI) 최적화:** 브라우저용 무거운 정적 HTML 대신, 사령탑 LLM(Gemini/Claude)이 즉시 수치화하여 소스코드와 교차 검증할 수 있는 정밀 구조체(Finding ID, 위치, 결함 코드, 근거 규칙, 2/3 합의율, 교차 검증용 가이드)를 JSON으로 신속 제공.
+- **토큰 밀도 85% 이상 절감:** 25KB+ HTML 보고서 오버헤드를 배제하고 3KB 미만의 초경량 JSON 페이로드(`to_lead_llm_payload()`)로 직결하여 상위 에이전트의 컨텍스트 낭비 원천 차단.
 - **Code Health Score (0~100점):** 결함 심각도에 따른 감점 알고리즘으로 프로젝트 건강도를 한눈에 직관적으로 파악.
-- **원클릭 제안 코드 복사:** AI가 제시한 리팩토링 코드를 클릭 한 번으로 클립보드에 복사.
 
-### 🔀 로컬 라우팅 프록시 & 서킷 브레이커 (Local Gateway)
-- **무중단 쿼타 보호:** 평상시에는 클라우드 최신 LLM(Gemini, Claude, OpenAI)으로 처리하다가, 429(할당량 초과) 또는 503(서버 과부하) 발생 시 즉시 로컬 SLM으로 끊김 없이 자동 우회합니다.
+### 📚 멀티 프로젝트 문서 지능 & 캐시 허브 (Multi-Project Document Intelligence)
+- **100% 온디바이스 주권형 RAG:** 외부 네트워크 전송 0건(Air-Gapped) 원칙으로 Markdown, TXT, PDF 문서를 로컬 인덱싱 및 초고속 검색.
+- **콘텐츠 주소 지정(CAS 중복 제거):** 파일 경로와 실제 내용(SHA-256)을 분리하여, 파일/폴더 이동 시 재임베딩 비용 0초, 상위 폴더 추가 등록 시 기존 하위 프로젝트 파일 중복 저장 0% 실현.
+- **하이브리드 어휘 & 도메인 사전 확장:** SQLite FTS5(BM25) 초고속 전문 검색과 프로젝트 고유 도메인 어휘(`3-Tier`, `Gate 1/2/3`, `PAD`, `Zero-Fake` 등) 자동 수확 및 쿼리 확장 결합.
+- **원본 무변조 원칙 (Read-Only):** 프로젝트 소스 및 문서를 일체 변경하지 않고 `~/.skybrain/knowledge.db` (WAL 모드)의 고립된 캐시에서만 인덱스 관리.
 
 ---
 
@@ -90,17 +107,17 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Dev as 👨‍💻 개발자 / IDE (MCP)
-    participant CLI as 🖥️ SkyBrain CLI (`uv tool`)
-    participant Guard as 🧠 메모리 보호 가드 (RAM Guard)
+    actor Dev as 👨‍💻 개발자 / 사령탑 LLM (Lead Agent)
+    participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
+    participant Guard as 🧠 4-Tier 하드웨어 진단 방화벽
     participant Super as 🩺 수퍼바이저 (Auto-Heal)
     participant Engine as 🔍 리뷰 엔진 (5대 렌즈)
     participant Daemon as ⚡ 온디바이스 데몬 (Metal SLM)
-    participant HTML as 📊 HTML 리포트 생성기
+    participant Lead as 👑 사령탑 LLM (Gemini/Claude)
 
-    Dev->>CLI: skybrain review ./src --html
-    CLI->>Guard: macOS 통합 가용 메모리 실시간 측정
-    Guard-->>CLI: 안전 상태 확인 (가용 RAM 6.5 GB)
+    Dev->>CLI: skybrain review ./src --json
+    CLI->>Guard: macOS 가용 메모리 & Metal 가속 실시간 측정
+    Guard-->>CLI: 안전 상태 확인 (가용 RAM 6.5 GB / OPTIMAL)
     CLI->>Super: check_health_fast() 상태 진단
     alt 데몬 미실행 상태
         Super->>Super: 백그라운드에서 데몬 자동 재기동
@@ -112,8 +129,9 @@ sequenceDiagram
         Engine->>Daemon: Chain-of-Verification (팩트 검증)
         Daemon-->>Engine: 검증 완료된 결함 반환
     end
-    Engine->>HTML: 스탠드얼론 인터랙티브 HTML 리포트 발행
-    HTML-->>Dev: ~/.skybrain/reports/review_report_*.html 저장 완료 안내
+    Engine->>CLI: to_lead_llm_payload() 고밀도 JSON 반환
+    CLI->>Lead: PRE-XX 후보 결함 및 크로스 체크 가이드 전달
+    Lead-->>Dev: 실코드 대조 팩트 검증 후 최종 조치 확정
 ```
 
 ---
@@ -137,7 +155,7 @@ CMAKE_ARGS="-DGGML_METAL=on" uv tool install --editable .
 ```bash
 ./setup.sh
 ```
-`setup.sh`는 Apple Silicon 칩셋 감지, Metal 바인딩 컴파일, 111개 단위 테스트 검증, `skybrain` 전역 명령어 등록, VS Code/Cursor용 `.vscode/mcp.json` 생성을 한 번에 완결합니다.
+`setup.sh`는 하드웨어 4단계 자동 진단, Metal 바인딩 컴파일, 94개 단위 테스트 검증, `skybrain` 전역 명령어 등록, VS Code/Cursor용 `.vscode/mcp.json` 생성을 한 번에 완결합니다.
 
 ### 3. 주요 CLI 명령어 모음
 ```bash
@@ -147,14 +165,26 @@ skybrain start
 # 실시간 상태 확인 및 호스트 RAM 보호 가드 진단
 skybrain status
 
-# 단일 파일 또는 전체 디렉토리 5대 렌즈 코드 리뷰 실행
-skybrain review ./skybrain/core/config.py
+# 4단계 시스템 수용성(🟢/⚠️/🛑)과 GPU 레이어가 결합된 모델 목록 확인
+skybrain model list
 
-# 로컬 온디바이스 SLM에 제로 토큰 질의 ($0 Token)
-skybrain ask "클린 아키텍처의 의존성 역전 원칙(DIP)을 설명해줘"
+# 단일 파일 또는 전체 디렉토리 5대 렌즈 코드 리뷰 실행 (사령탑 LLM용 JSON 출력 지원: -j)
+skybrain review ./skybrain/core/config.py -j
 
-# 클라우드 LLM 우선 질의 + 할당량 초과 시 로컬 자동 우회
-skybrain ask "대규모 리팩토링 설계안 작성해줘" --cloud
+# 로컬 온디바이스 SLM 단발성 즉시 질의 ($0 Token)
+skybrain query "클린 아키텍처의 의존성 역전 원칙(DIP)을 요약해줘"
+
+# 디렉토리를 프로젝트 지식 허브로 등록 (CAS 중복 배제 인덱싱)
+skybrain doc add ./00-governance --name "OSS-Governance"
+
+# SQLite FTS5 & 도메인 어휘 확장을 통한 지식 검색
+skybrain doc search "3-Tier 배포 파이프라인" --project oss-governance
+
+# 등록된 프로젝트 목록 및 활성 파일 현황 확인
+skybrain doc list
+
+# 변경된 파일 증분 동기화 (Incremental Sync)
+skybrain doc sync
 
 # 백그라운드 데몬 안전 종료
 skybrain stop
@@ -162,15 +192,47 @@ skybrain stop
 
 ---
 
-## 💻 IDE 연동 (Model Context Protocol)
+## 💻 Model Context Protocol (MCP) 연동 가이드
 
-SkyBrain은 내장 MCP 서버를 탑재하고 있어, **Cursor, VS Code (Cline / Roo Code), Claude Desktop, Antigravity IDE**와 즉시 연동됩니다:
+SkyBrain은 공식 Model Context Protocol(MCP) 표준 서버(`skybrain-mcp`)를 탑재하여, **Antigravity IDE, Anthropic Claude CLI (Claude Code), Cursor, VS Code** 등에서 로컬 Apple Silicon Metal SLM 지능을 1급 시민(First-Class) 도구로 즉시 활용할 수 있습니다:
 
-* **제공되는 MCP 도구**:
-  * `skybrain_expert_consensus`: IDE 내부에서 5대 렌즈 정밀 코드 리뷰 직접 실행.
-  * `skybrain_query`: 클라우드 토큰 소모 없이 로컬 Metal SLM에 초고속 질의.
-  * `skybrain_translate`: 12개 국어 실시간 오프라인 번역.
-  * `skybrain_summarize_logs`: 50줄 이상의 대용량 빌드/런타임 로그 로컬 요약.
+### 🚀 명령어 1줄 등록
+
+```bash
+# Anthropic Claude CLI (Claude Code) 공식 등록
+claude mcp add skybrain -- uv tool run skybrain-mcp
+
+# 도구 목록 및 통합 설정 안내 확인
+skybrain mcp tools
+skybrain mcp setup
+```
+
+### 🛠️ 제공되는 6대 표준 MCP 도구
+
+| MCP 도구 | 기능 설명 | 주요 활용처 |
+| :--- | :--- | :--- |
+| 🔍 `skybrain_code_review` | 5대 렌즈 정밀 코드 리뷰 (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`) | IDE 내 원클릭 PR/파일 품질 감사 |
+| ⚖️ `skybrain_expert_consensus` | 6대 전문 시각 기반 2/3 다수결 합의 다중 패스 코드 검증 | 고신뢰도 아키텍처 합의 검증 |
+| ⚡ `skybrain_query` | 클라우드 토큰 소모 제로($0) 로컬 Metal SLM 즉시 질의 (비전/멀티모달 지원) | 단일 파일 코드 초안 및 아이디어 생성 |
+| 🌐 `skybrain_translate` | 12개 국어 실시간 오프라인 로컬 번역 | README 및 다국어 리소스 동기화 |
+| 📜 `skybrain_summarize_logs` | 50줄 이상의 대용량 빌드/런타임 로그에서 노이즈 제거 및 원인 요약 | 외부 유출 없는 안전한 로그 디버깅 |
+| 🩺 `skybrain_status` | 데몬 실행 상태, 활성 모델, RAM/메모리 가드 레벨 실시간 진단 | 로컬 하드웨어 및 서비스 상태 점검 |
+| 📚 `skybrain_doc_search` | 멀티 프로젝트 SQLite FTS5 (BM25) 전문 검색 및 도메인 어휘 확장 | 제로 클라우드 프로젝트 컨텍스트 즉시 검색 |
+| 📥 `skybrain_doc_import` | 디렉토리를 CAS 지식 베이스로 임포트 (공간 낭비 없는 중복 배제) | 다중 프로젝트 문서 등록 및 인덱싱 |
+| 📋 `skybrain_doc_list` | 등록된 프로젝트 목록, 문서 수, 인덱싱 현황 요약 | 지식 허브 현황 대시보드 |
+
+### ⚙️ IDE 설정 파일 (`mcp_config.json` / `settings.json`)
+
+```json
+{
+  "mcpServers": {
+    "skybrain": {
+      "command": "uv",
+      "args": ["tool", "run", "skybrain-mcp"]
+    }
+  }
+}
+```
 
 ---
 
