@@ -35,6 +35,7 @@ Please check what tests you ran before submitting this PR:
 ---
 
 ## 📋 Contributor Checklist
+- [ ] ✍️ **Contributor License Agreement (CLA)**: I confirm that this contribution is my original work and I agree to the [Contributor License Agreement (CLA)](CLA.md) and Apache License 2.0.
 - [ ] My code adheres to the project's **Docker-Free & Apple Silicon Native** architecture principles.
 - [ ] I have updated relevant documentation if this PR introduces public-facing changes.
 - [ ] My commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: ...`, `fix: ...`).
