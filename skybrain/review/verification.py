@@ -14,6 +14,7 @@ from typing import Optional
 
 from skybrain.review.client import SkyBrainClient
 from skybrain.review.models import Finding, Severity
+from skybrain.utils.thinking import strip_thinking
 
 logger = logging.getLogger("skybrain.review.verification")
 
@@ -115,9 +116,8 @@ class ChainOfVerifier:
     @staticmethod
     def _parse_verification(raw: str) -> tuple[bool, float]:
         """Parse verification JSON response."""
-        # Strip thinking blocks
-        if "</think>" in raw:
-            raw = raw.split("</think>", 1)[-1]
+        # Strip <think>...</think> blocks from reasoning models (Qwen, Gemma, DeepSeek)
+        raw = strip_thinking(raw)
 
         # Extract JSON object
         start = raw.find("{")

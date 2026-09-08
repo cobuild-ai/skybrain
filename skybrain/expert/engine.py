@@ -23,6 +23,7 @@ from skybrain.expert.registry import LensRegistry, default_registry
 from skybrain.expert.store import ConsensusContextStore, default_context_store
 from skybrain.expert.voter import ConsensusVoter
 from skybrain.review.client import LLMClient, SkyBrainClient
+from skybrain.utils.thinking import strip_thinking
 
 logger = logging.getLogger("skybrain.expert.engine")
 
@@ -241,14 +242,6 @@ class ExpertEngine:
             logger.warning("Followup projection error (%s): %s", lens.lens_id, exc)
             return []
 
-        logger.info(
-            "🏁 Evaluation complete for %s: %d accepted (>=2/3), %d filtered (<2/3)",
-            path.name,
-            len(accepted),
-            len(rejected),
-        )
-        return report
-
     def _execute_projection(
         self,
         code: str,
@@ -330,8 +323,8 @@ class ExpertEngine:
     @staticmethod
     def _extract_json(text: str) -> str:
         """Extract pure JSON array string from model output."""
-        if "</think>" in text:
-            text = text.split("</think>", 1)[-1]
+        # Strip <think>...</think> blocks from reasoning models (Qwen, Gemma, DeepSeek)
+        text = strip_thinking(text)
 
         for fence in ("```json", "```"):
             if fence in text:

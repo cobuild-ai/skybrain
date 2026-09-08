@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import ssl
 import threading
-from typing import Optional, List
+from typing import Optional, List, Union
 import urllib.request
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -30,9 +30,22 @@ class SkyBrainSettings(BaseSettings):
     port: int = 8000
     
     # Hardware & Performance
-    n_gpu_layers: int = ALL_GPU_LAYERS  # Offload all layers to Apple Silicon Metal GPU
+    n_gpu_layers: Union[int, str] = Field(
+        default="auto",
+        description="GPU offload layers: 'auto' (hardware auto-tuning), -1 (full GPU), 0 (CPU only), or specific layer count"
+    )
     n_ctx: int = 16384
     n_threads: int = 8
+
+    def get_resolved_gpu_layers(self, model_key: str = "default") -> int:
+        """Returns integer layer count, resolving 'auto' via HardwareAutoTuner."""
+        if str(self.n_gpu_layers).lower() == "auto":
+            from skybrain.core.hardware import HardwareAutoTuner
+            return HardwareAutoTuner.resolve_gpu_layers(model_key=model_key)
+        try:
+            return int(self.n_gpu_layers)
+        except (ValueError, TypeError):
+            return ALL_GPU_LAYERS
 
     # Auto-Provisioning
     auto_download: bool = True
@@ -71,48 +84,6 @@ class SkyBrainSettings(BaseSettings):
         ),
     )
 
-    # ── Cloud LLM Gateway Settings (Local Routing Proxy) ────
-    gemini_api_key: Optional[str] = Field(
-        default=None,
-        description="Google Gemini API Key. Environment variable: GEMINI_API_KEY or SKYBRAIN_GEMINI_API_KEY"
-    )
-    gemini_endpoint: str = Field(
-        default="https://generativelanguage.googleapis.com",
-        description="Base URL for Google Gemini API. Can be overridden for private/corporate gateways."
-    )
-    gemini_model: str = Field(
-        default="gemini-3.6-flash",
-        description="Gemini model name. Environment variable: GEMINI_MODEL or SKYBRAIN_GEMINI_MODEL"
-    )
-
-    openai_api_key: Optional[str] = Field(
-        default=None,
-        description="OpenAI API Key. Environment variable: OPENAI_API_KEY or SKYBRAIN_OPENAI_API_KEY"
-    )
-    openai_base_url: str = Field(
-        default="https://api.openai.com/v1",
-        description="OpenAI base URL. Environment variable: OPENAI_BASE_URL or SKYBRAIN_OPENAI_BASE_URL"
-    )
-
-    anthropic_api_key: Optional[str] = Field(
-        default=None,
-        description="Anthropic Claude API Key. Environment variable: ANTHROPIC_API_KEY or SKYBRAIN_ANTHROPIC_API_KEY"
-    )
-
-    # ── Universal Custom AI API Address ──────────────────────────
-    custom_api_url: Optional[str] = Field(
-        default=None,
-        description="Custom AI server/proxy address. Environment variable: CUSTOM_API_URL or SKYBRAIN_CUSTOM_API_URL"
-    )
-    custom_api_key: Optional[str] = Field(
-        default=None,
-        description="Optional API key / Bearer token for the custom AI address."
-    )
-    custom_api_model: str = Field(
-        default="custom-model",
-        description="Model identifier to send to the custom AI server."
-    )
-
     model_config = {"env_prefix": "SKYBRAIN_", "extra": "ignore"}
 
     def model_post_init(self, __context):
@@ -134,8 +105,7 @@ class SkyBrainSettings(BaseSettings):
         try:
             data = json.loads(config_file.read_text(encoding="utf-8"))
             overridable_keys = {
-                "gemini_endpoint", "gemini_model", "openai_base_url",
-                "custom_api_url", "custom_api_key", "custom_api_model"
+                "host", "port", "n_gpu_layers", "n_ctx", "n_threads", "auto_download"
             }
             for k, v in data.items():
                 if hasattr(self, k) and (getattr(self, k) is None or k in overridable_keys):
