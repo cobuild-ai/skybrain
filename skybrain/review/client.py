@@ -2,12 +2,24 @@
 
 Thin, zero-dependency client for the local OpenAI-compatible API.
 Handles connection errors, auto-healing (daemon restart), and retries.
+
+Clients
+-------
+SkyBrainClient   — local on-device daemon (Qwen 3.8 Metal, default)
+ClaudeLLMClient  — Anthropic Claude API (claude-sonnet-4-5, etc.)
+
+Factory
+-------
+create_review_client() — auto-selects the best available client:
+    ANTHROPIC_API_KEY set  →  ClaudeLLMClient
+    (no key)               →  SkyBrainClient (local fallback)
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 import time
 import urllib.error
@@ -21,6 +33,10 @@ DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 MAX_RETRIES = 2
 RETRY_DELAY_SECONDS = 3.0
 REQUEST_TIMEOUT_SECONDS = 240.0
+
+ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_API_VERSION = "2023-06-01"
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-5"
 
 
 @runtime_checkable
@@ -172,3 +188,195 @@ class SkyBrainClient:
             logger.info("✅ SkyBrain daemon auto-started.")
         except Exception as exc:
             logger.warning("⚠️ Auto-heal failed: %s", exc)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Claude LLM Client (Anthropic API — 1st-class LLMClient impl)
+# ═══════════════════════════════════════════════════════════════
+
+
+class ClaudeLLMClient:
+    """Anthropic Claude API client implementing the LLMClient protocol.
+
+    Drop-in replacement for SkyBrainClient: same ``query()`` interface,
+    no extra dependencies (uses stdlib ``urllib`` only).
+
+    Usage::
+
+        # Explicit key
+        client = ClaudeLLMClient(api_key="sk-ant-...")
+        result = client.query(messages=[{"role": "user", "content": "hi"}])
+
+        # Auto-detect from environment
+        client = ClaudeLLMClient()   # reads ANTHROPIC_API_KEY or SKYBRAIN_ANTHROPIC_API_KEY
+
+    Env vars (in priority order):
+        ANTHROPIC_API_KEY
+        SKYBRAIN_ANTHROPIC_API_KEY
+
+    Model override::
+        SKYBRAIN_CLAUDE_MODEL=claude-opus-4-5  (default: claude-sonnet-4-5)
+
+    Message format translation:
+        OpenAI-style ``{"role": "system", "content": "..."}``
+        → Anthropic ``system`` top-level field + filtered ``messages`` list.
+        This ensures the caller (ReviewLens, ExpertEngine, ChainOfVerifier)
+        never needs to know which backend is in use.
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: float = REQUEST_TIMEOUT_SECONDS,
+    ) -> None:
+        resolved_key = (
+            api_key
+            or os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("SKYBRAIN_ANTHROPIC_API_KEY")
+        )
+        if not resolved_key:
+            raise ValueError(
+                "ClaudeLLMClient requires an Anthropic API key. "
+                "Set ANTHROPIC_API_KEY environment variable or pass api_key=."
+            )
+        self._api_key = resolved_key
+        self._model = (
+            model
+            or os.environ.get("SKYBRAIN_CLAUDE_MODEL")
+            or DEFAULT_CLAUDE_MODEL
+        )
+        self._timeout = timeout
+
+    def query(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float = 0.1,
+        max_tokens: int = 2048,
+    ) -> str:
+        """Send messages to the Anthropic Claude API and return assistant text.
+
+        Translates OpenAI-style messages (including ``role: system``) to the
+        Anthropic ``/v1/messages`` format transparently.
+
+        Raises:
+            RuntimeError: On HTTP error, quota exceeded, or unexpected response.
+        """
+        system_parts: list[str] = []
+        anthropic_messages: list[dict] = []
+
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                # Accumulate system instructions into the top-level system field
+                system_parts.append(content)
+            elif role in ("user", "assistant"):
+                anthropic_messages.append({"role": role, "content": content})
+
+        # Anthropic requires at least one user message
+        if not anthropic_messages:
+            anthropic_messages.append({"role": "user", "content": ""})
+
+        payload: dict = {
+            "model": self._model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": anthropic_messages,
+        }
+        if system_parts:
+            payload["system"] = "\n\n".join(system_parts)
+
+        data = json.dumps(payload).encode("utf-8")
+        headers = {
+            "x-api-key": self._api_key,
+            "anthropic-version": ANTHROPIC_API_VERSION,
+            "Content-Type": "application/json",
+            "User-Agent": "SkyBrain-ReviewEngine/1.0",
+        }
+
+        req = urllib.request.Request(
+            ANTHROPIC_API_URL,
+            data=data,
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8")
+            except Exception:
+                pass
+            status = exc.code
+            if status == 429:
+                raise RuntimeError(
+                    f"Claude API quota exceeded (429). Retry after back-off. Detail: {error_body}"
+                ) from exc
+            if status in (529, 503, 502):
+                raise RuntimeError(
+                    f"Claude API overloaded ({status}). Detail: {error_body}"
+                ) from exc
+            raise RuntimeError(
+                f"Claude API HTTP error ({status}): {error_body}"
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(f"Claude API connection error: {exc}") from exc
+
+        # Parse Anthropic response format:
+        # {"content": [{"type": "text", "text": "..."}], ...}
+        try:
+            content_blocks = body.get("content", [])
+            text_blocks = [b["text"] for b in content_blocks if b.get("type") == "text"]
+            if not text_blocks:
+                raise KeyError("no text content block")
+            return "".join(text_blocks)
+        except (KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(
+                f"Unexpected Claude API response structure: {body}"
+            ) from exc
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Auto-selecting factory
+# ═══════════════════════════════════════════════════════════════
+
+
+def create_review_client() -> LLMClient:
+    """Auto-select the best available LLM client for review/expert pipelines.
+
+    Priority order:
+      1. ``ANTHROPIC_API_KEY`` / ``SKYBRAIN_ANTHROPIC_API_KEY`` → ClaudeLLMClient
+      2. Fallback → SkyBrainClient (local on-device Qwen 3.8)
+
+    Usage::
+
+        from skybrain.review.client import create_review_client
+        client = create_review_client()
+        engine = ReviewEngine(client=client)
+
+    This means:
+      - ``ANTHROPIC_API_KEY`` set  →  all review/expert/verification calls use Claude
+      - No key set                 →  uses local SkyBrain daemon (zero cloud tokens)
+    """
+    anthropic_key = (
+        os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("SKYBRAIN_ANTHROPIC_API_KEY")
+    )
+    if anthropic_key:
+        model = os.environ.get("SKYBRAIN_CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL)
+        logger.info(
+            "☁️ [create_review_client] Claude API detected (model: %s). "
+            "Using ClaudeLLMClient for review pipeline.",
+            model,
+        )
+        return ClaudeLLMClient(api_key=anthropic_key, model=model)
+
+    logger.info(
+        "⚡ [create_review_client] No cloud API key found. "
+        "Using local SkyBrain daemon (on-device Qwen 3.8)."
+    )
+    return SkyBrainClient()

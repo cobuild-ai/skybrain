@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skybrain"
-version = "0.2.0"
+version = "0.3.0"
 description = "Universal On-Device AI Serving Daemon & Model Hub with Apple Silicon Metal GPU Acceleration"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,6 +34,7 @@ dependencies = [
     "uvicorn>=0.29.0",
     "httpx>=0.27.0",
     "llama-cpp-python>=0.3.0",
+    "pypdf>=4.0.0",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +45,7 @@ dev = [
 
 [project.scripts]
 skybrain = "skybrain.cli.main:app"
+skybrain-mcp = "skybrain.mcp.server:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

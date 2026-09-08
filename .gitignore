@@ -16,6 +16,12 @@ venv/
 # Logs and runtime
 *.log
 *.pid
+logs/
+data/
+
+# Journal backups & archives
+.skyjournal/
+*.gz
 
 # IDE & OS
 .DS_Store
