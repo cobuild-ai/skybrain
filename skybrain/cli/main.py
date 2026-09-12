@@ -434,15 +434,17 @@ def review_cmd(
     from skybrain.review.lenses.security import SecurityLens
     from skybrain.review.lenses.performance import PerformanceLens
     from skybrain.review.lenses.ai_conduct import AIConductLens
+    from skybrain.review.lenses.resilience import ResilienceLens
 
     target_path = Path(target).resolve()
     if target_path.is_file():
         files_to_review = [target_path]
     elif target_path.is_dir():
-        # Collect Python source files
+        # Collect source files (.py, .kt, .java)
+        extensions = ("*.py", "*.kt", "*.java")
         files_to_review = [
-            p for p in target_path.rglob("*.py")
-            if not any(part.startswith((".", "__")) or part in ("build", "dist", "site-packages") for part in p.parts)
+            p for ext in extensions for p in target_path.rglob(ext)
+            if not any(part.startswith((".", "__")) or part in ("build", "dist", "site-packages", ".gradle") for part in p.parts)
         ]
     else:
         console.print(f"[bold red]❌ Target path not found: {target}[/bold red]")
@@ -453,9 +455,9 @@ def review_cmd(
         return
 
     if not json_output:
-        console.print(f"\n[bold cyan]🔍 SkyBrain Multi-Lens Code Review[/bold cyan]")
+        console.print(f"\n[bold cyan]🔍 SkyBrain Multi-Lens Code Review (6-Lens System)[/bold cyan]")
         console.print(f"[dim]Target: {target} ({len(files_to_review)} files) | Rounds: {rounds} | Verification: {verify}[/dim]")
-        console.print("[dim]Active Lenses: CleanCode, CleanArchitecture, Security, Performance, AIConduct[/dim]")
+        console.print("[dim]Active Lenses: CleanCode, CleanArchitecture, Security, Performance, AIConduct, Resilience[/dim]")
 
     # ── Pre-flight System & Memory Guard ──
     from skybrain.core.monitor import SystemGuard, MemoryStatusLevel
@@ -472,7 +474,14 @@ def review_cmd(
     from skybrain.server.supervisor import DaemonSupervisor
     DaemonSupervisor.ensure_daemon_alive()
 
-    lenses = [CleanCodeLens, CleanArchitectureLens, SecurityLens, PerformanceLens, AIConductLens]
+    lenses = [
+        CleanCodeLens,
+        CleanArchitectureLens,
+        SecurityLens,
+        PerformanceLens,
+        AIConductLens,
+        ResilienceLens,
+    ]
     engine = ReviewEngine(lens_classes=lenses)
 
     from rich.progress import (
