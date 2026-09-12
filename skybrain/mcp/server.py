@@ -362,6 +362,7 @@ class SkyBrainMCPServer:
             from skybrain.review.lenses.security import SecurityLens
             from skybrain.review.lenses.performance import PerformanceLens
             from skybrain.review.lenses.ai_conduct import AIConductLens
+            from skybrain.review.lenses.resilience import ResilienceLens
 
             file_path = args["file_path"]
             rounds = args.get("rounds", 1)
@@ -371,7 +372,14 @@ class SkyBrainMCPServer:
             if not target_path.exists():
                 return f"Error: File not found: {file_path}"
 
-            lenses = [CleanCodeLens, CleanArchitectureLens, SecurityLens, PerformanceLens, AIConductLens]
+            lenses = [
+                CleanCodeLens,
+                CleanArchitectureLens,
+                SecurityLens,
+                PerformanceLens,
+                AIConductLens,
+                ResilienceLens,
+            ]
             engine = ReviewEngine(lens_classes=lenses)
             # Run review synchronously in threadpool executor to avoid blocking event loop
             loop = asyncio.get_running_loop()

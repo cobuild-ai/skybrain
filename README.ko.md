@@ -12,14 +12,14 @@
 [![Inference: Metal GPU](https://img.shields.io/badge/Inference-Apple%20Metal%20GPU%20(Zero--Docker)-blueviolet)](#-제로-도커-순수-네이티브-metal-gpu-가속)
 [![API: OpenAI Compatible](https://img.shields.io/badge/API-OpenAI%20v1%20호환-412991?logo=openai&logoColor=white)](#-openai-호환-로컬-rest-api)
 [![Package: uv tool](https://img.shields.io/badge/Package-uv%20tool%20(Rust)-FF4088?logo=python&logoColor=white)](#-빠른-시작-quick-start)
-[![Review: 5--Lens Engine](https://img.shields.io/badge/코드%20리뷰-5대%20Multi--Lens-success)](#-5대-multi-lens-전문가-코드-리뷰-엔진)
+[![Review: 6--Lens Engine](https://img.shields.io/badge/코드%20리뷰-6대%20Multi--Lens-success)](#-6대-multi-lens-전문가-코드-리뷰-엔진)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 **SkyBrain**은 macOS 및 Apple Silicon(M1/M2/M3/M4) 환경을 위해 특화 설계된 **Docker 없는 순수 네이티브 온디바이스 AI 서빙 데몬이자 엔터프라이즈 개발자 생산성 플랫폼**입니다.
 
-Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로컬 서빙, 클라우드 429/503 장애 시 로컬로 무중단 전환되는 로컬 라우팅 프록시(서킷 브레이커), 그리고 인터랙티브 HTML 대시보드를 자동 생성하는 **5대 Multi-Lens 정밀 코드 리뷰 엔진**을 원스톱으로 제공합니다.
+Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로컬 서빙, 클라우드 429/503 장애 시 로컬로 무중단 전환되는 로컬 라우팅 프록시(서킷 브레이커), 그리고 인터랙티브 HTML 대시보드를 자동 생성하는 **6대 Multi-Lens 정밀 코드 리뷰 엔진**을 원스톱으로 제공합니다.
 
-[핵심 기능](#-핵심-플랫폼-기능) • [5대 렌즈 실전 데모](#-5대-렌즈-실전-동작-예시) • [작동 원리](#-작동-원리) • [아키텍처](ARCHITECTURE.md) • [빠른 시작](#-빠른-시작-quick-start) • [프로젝트 디렉토리 구조](#-프로젝트-디렉토리-구조) • [거버넌스](GEMINI.md)
+[핵심 기능](#-핵심-플랫폼-기능) • [6대 렌즈 실전 데모](#-6대-렌즈-실전-동작-예시) • [작동 원리](#-작동-원리) • [아키텍처](ARCHITECTURE.md) • [빠른 시작](#-빠른-시작-quick-start) • [프로젝트 디렉토리 구조](#-프로젝트-디렉토리-구조) • [거버넌스](GEMINI.md)
 
 </div>
 
@@ -36,7 +36,7 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 | 🔒 **100% 데이터 주권 & 보안** | 외부 인터넷 통신 0건(Air-Gapped) 원칙. 민감한 내부 소스코드, 시스템 로그, 시크릿 키가 로컬 머신 외부로 단 1바이트도 유출되지 않음 | 기업 보안 및 컴플라이언스 기준 완벽 충족, 안심하고 로컬 감사 수행 |
 | ⚡ **제로 도커 순수 Metal 속도** | 무거운 Docker 가상화 머신 없이 macOS 네이티브 환경에서 Apple Silicon(M1~M4) 통합 메모리와 GPU 코어를 직결 (`-DGGML_METAL=on`) | 메모리 복사 오버헤드 0ms, 초저지연 토큰 스트리밍 서빙 실현 |
 | 🛡️ **호스트 메모리 보호 & 자율 복구** | 가용 RAM 2.5GB 미만 시 과중한 연산을 사전 차단(Pre-flight Guard)하여 맥북 멈춤 방지, 데몬 비정상 종료 시 150ms 핑 감지로 500ms 내 자동 재기동 | 무중단 서킷 브레이커 환경 제공 및 호스트 시스템 안정성 100% 보장 |
-| 🔍 **5대 전문 렌즈 & Zero-Fake 감사** | Clean Code, Clean Architecture, Security, Performance와 더불어 **가짜 mock 하드코딩, 환각 API, 은폐된 예외**를 잡아내는 `AI Conduct` 렌즈 탑재 | AI 생성 코드의 치명적 결함을 사전 차단하여 상용 수준의 코드 무결성 확보 |
+| 🔍 **6대 전문 렌즈 & Zero-Fake 감사** | Clean Code, Clean Architecture, Security, Performance, AI Conduct와 더불어 **IPC 좀비 핸들 방지 및 수명주기 디커플링을 감사하는 `Resilience` 렌즈** 탑재 | AI 생성 코드의 결함과 모바일/분산 런타임 크래시 벡터를 사전 차단하여 상용 무결성 확보 |
 
 ---
 
@@ -44,9 +44,9 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 
 | 컴포넌트 | 버전 | 아키텍처 | 상태 | 주요 핵심 특징 |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.2.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | 도커 없는 네이티브 Metal GPU 가속, 150ms 자율 복구 슈퍼바이저, 호스트 메모리 보호 가드(Pre-flight Memory Guard), 무중단 서킷 브레이커 |
-| 🔍 **Multi-Lens Review Engine** | `v0.2.0` | **5-Lens Strategy Pattern** | **Production Stable** | 5대 전문 렌즈(`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`), Chain-of-Verification 팩트 검증, 인터랙티브 글래스모피즘 HTML 대시보드 |
-| 🔌 **SkyBrain MCP Server** | `v0.2.0` | **Model Context Protocol** | **Production Stable** | Cursor, VS Code, Antigravity IDE, Claude Desktop 전 도구 표준 연동 |
+| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | 도커 없는 네이티브 Metal GPU 가속, 150ms 자율 복구 슈퍼바이저, 호스트 메모리 보호 가드(Pre-flight Memory Guard), 무중단 서킷 브레이커 |
+| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6대 전문 렌즈(`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification 팩트 검증, 인터랙티브 글래스모피즘 HTML 대시보드 |
+| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Cursor, VS Code, Antigravity IDE, Claude Desktop 전 도구 표준 연동 |
 
 ---
 
@@ -67,13 +67,14 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 - **150ms 초고속 자율 복구(Auto-Healing):** 모든 요청 전 150ms 핑으로 상태를 진단하며, 데몬이 종료되었거나 응답하지 않으면 백그라운드에서 500ms 안에 스스로 재기동합니다.
 - **원자적 프로세스 청소:** 포트 충돌 및 고아/좀비 프로세스를 `SIGTERM` ➔ `SIGKILL` 2단계 원자적 시퀀스로 깔끔하게 정리합니다.
 
-### 🔍 5대 Multi-Lens 전문가 코드 리뷰 엔진
-- **독립적 다관점(Multi-Perspective) 감사:** 단일 모델의 편향을 극복하기 위해 5대 엔지니어링 렌즈로 소스코드를 다각도 분석합니다:
+### 🔍 6대 Multi-Lens 전문가 코드 리뷰 엔진
+- **독립적 다관점(Multi-Perspective) 감사:** 단일 모델의 편향을 극복하기 위해 6대 엔지니어링 렌즈로 소스코드를 다각도 분석합니다:
   1. 🧹 **Clean Code Lens:** Robert C. Martin 원칙, 단일 책임 원칙(SRP), DRY(중복 배제), 명확한 네이밍 검증.
   2. 🏛️ **Clean Architecture Lens:** Uncle Bob 의존성 역전 원칙(DIP), 계층 간 경계 보호, Contract Facade 패턴 검증.
   3. 🛡️ **Security Lens:** OWASP Top 10, 경로 조작(Path Traversal), 주입 공격, 예외 정보 누출 차단.
   4. ⚡ **Performance Lens:** 소켓/SSL 자원 수명주기, 메인 루프 블로킹 I/O, 복잡도 최적화.
-  5. 🤖 **AI Conduct Lens (신규 탑재):** AI 생성 코드 특유의 안티패턴(가짜 mock 하드코딩, 환각된 부존재 API 호출, 무책임한 `except Exception: pass`, 미완성 TODO 스텁)을 전문 색출.
+  5. 🤖 **AI Conduct Lens:** AI 생성 코드 특유의 안티패턴(가짜 mock 하드코딩, 환각된 부존재 API 호출, 무책임한 `except Exception: pass`, 미완성 TODO 스텁)을 전문 색출.
+  6. 🔄 **Resilience & Lifecycle Lens (신규 탑재):** IPC/OS 바인더 좀비 핸들 방지(Error 11 DeadProxy 차단), 에러 발생 시 즉각 자원 해제, 일시적 네트워크/IPC 단절 시 자동 재시도 백오프 검증.
 - **팩트 검증(Chain-of-Verification):** 검출된 모든 결함은 독립 검증 모델을 거쳐 허위 경고(False Positive)를 철저히 제거합니다.
 - **Tier-1 콘텐츠 해시 디스크 캐시:** SHA-256 기반 캐싱으로 변경되지 않은 파일은 0.1초 만에 결과를 즉시 반환합니다.
 
@@ -90,10 +91,11 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 
 ---
 
-## 🎭 5대 렌즈 실전 동작 예시
+## 🎭 6대 렌즈 실전 동작 예시
 
 | 전문 렌즈 | 검출된 안티패턴 및 결함 | 심각도 | AI 기반 수정 제안 |
 | :--- | :--- | :---: | :--- |
+| 🔄 **Resilience** | `onError` 후 바인더 핸들을 파기하지 않아 DeadProxy 에러 누적 | 🚨 **CRITICAL** | 에러 콜백 즉시 핸들을 unbind/destroy하고 다음 요청 시 새로 초기화할 것. |
 | 🤖 **AI Conduct** | 가짜 데이터 하드코딩 `return {"status": "ok"}` | 🚨 **CRITICAL** | 실제 동적 조회 쿼리를 구현하거나 명시적으로 `NotImplementedError`를 발생시킬 것. |
 | 🛡️ **Security** | `except Exception: pass`로 장애 원인을 은폐함 | 🔴 **HIGH** | 구체적 예외 `(json.JSONDecodeError, OSError)`를 지정하고 `logger.warning()`으로 기록할 것. |
 | 🏛️ **Architecture** | 내부 계층이 구체 도메인 모델에 직접 결합됨 (`DIP 위반`) | 🔴 **HIGH** | `base.py`에 **Contract Facade 패턴**을 적용하여 핵심 추상화만 re-export할 것. |
@@ -111,7 +113,7 @@ sequenceDiagram
     participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
     participant Guard as 🧠 4-Tier 하드웨어 진단 방화벽
     participant Super as 🩺 수퍼바이저 (Auto-Heal)
-    participant Engine as 🔍 리뷰 엔진 (5대 렌즈)
+    participant Engine as 🔍 리뷰 엔진 (6대 렌즈)
     participant Daemon as ⚡ 온디바이스 데몬 (Metal SLM)
     participant Lead as 👑 사령탑 LLM (Gemini/Claude)
 
@@ -122,8 +124,8 @@ sequenceDiagram
     alt 데몬 미실행 상태
         Super->>Super: 백그라운드에서 데몬 자동 재기동
     end
-    CLI->>Engine: 5대 렌즈 다관점 리뷰 가동
-    loop 5대 렌즈 순회 (CleanCode, Architecture, Security, Performance, AIConduct)
+    CLI->>Engine: 6대 렌즈 다관점 리뷰 가동
+    loop 6대 렌즈 순회 (CleanCode, Architecture, Security, Performance, AIConduct, Resilience)
         Engine->>Daemon: 시스템 프롬프트 + 소스코드 분석 요청
         Daemon-->>Engine: 정형 JSON 결함 목록 반환
         Engine->>Daemon: Chain-of-Verification (팩트 검증)
@@ -258,18 +260,19 @@ skybrain/
 │   ├── server/                 # FastAPI 백그라운드 데몬 및 프로세스 감시
 │   │   ├── app.py              # OpenAI 규격 /v1 엔드포인트 및 메모리 텔레메트리
 │   │   └── supervisor.py       # 원자적 프로세스 킬러 및 150ms 자율 복구 수퍼바이저
-│   ├── review/                 # 5대 Multi-Lens 코드 리뷰 플랫폼
+│   ├── review/                 # 6대 Multi-Lens 코드 리뷰 플랫폼
 │   │   ├── models.py           # 순수 도메인 엔티티 (Severity, Category, Finding, Report)
 │   │   ├── engine.py           # Rich Progress 진행률 추적을 지원하는 오케스트레이터
 │   │   ├── verification.py     # 허위 경고를 제거하는 Chain-of-Verification 팩트 검증기
 │   │   ├── html_report.py      # 단일 파일 자립형 인터랙티브 HTML 대시보드 생성기
-│   │   └── lenses/             # Strategy Pattern 기반 5대 전문 렌즈
+│   │   └── lenses/             # Strategy Pattern 기반 6대 전문 렌즈
 │   │       ├── base.py         # 핵심 추상화를 재수출하는 Contract Facade
 │   │       ├── clean_code.py   # Robert C. Martin 클린 코드 원칙 렌즈
 │   │       ├── clean_architecture.py # 의존성 역전 및 계층 경계 보호 렌즈
 │   │       ├── security.py     # OWASP 및 예외 안전성 보안 렌즈
 │   │       ├── performance.py  # 자원 누수 및 I/O 블로킹 성능 렌즈
-│   │       └── ai_conduct.py   # AI 안티패턴(가짜 하드코딩, 환각, 스텁) 전문 감사 렌즈
+│   │       ├── ai_conduct.py   # AI 안티패턴(가짜 하드코딩, 환각, 스텁) 전문 감사 렌즈
+│   │       └── resilience.py   # 수명주기 디커플링 및 좀비 핸들 방지 렌즈
 │   └── mcp/                    # IDE 연동 표준 Model Context Protocol 서버
 │
 └── tests/                      # 111개 단위 테스트 스위트 (100% 무결점 통과)
@@ -293,4 +296,4 @@ skybrain/
 - **License:** Apache License 2.0
 - **Organization:** [cobuild-ai](https://github.com/cobuild-ai)
 - **Maintainer:** `smilelife` (<mysmilelife@gmail.com>)
-- **Public Support:** <deartalkai.dev@gmail.com>
+- **Public Support:** <onthelogic@gmail.com>

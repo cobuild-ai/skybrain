@@ -12,14 +12,14 @@
 [![Inference: Metal GPU](https://img.shields.io/badge/Inference-Apple%20Metal%20GPU%20(Zero--Docker)-blueviolet)](#-zero-docker-native-metal-gpu-acceleration)
 [![API: OpenAI Compatible](https://img.shields.io/badge/API-OpenAI%20v1%20Compatible-412991?logo=openai&logoColor=white)](#-openai-compatible-local-rest-api)
 [![Package: uv tool](https://img.shields.io/badge/Package-uv%20tool%20(Rust)-FF4088?logo=python&logoColor=white)](#-quick-start)
-[![Review: 5--Lens Engine](https://img.shields.io/badge/Code%20Review-5--Lens%20Multi--Pass-success)](#-5-lens-multi-pass-code-review-engine)
+[![Review: 6--Lens Engine](https://img.shields.io/badge/Code%20Review-6--Lens%20Multi--Pass-success)](#-6-lens-multi-pass-code-review-engine)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 **SkyBrain** is an enterprise-grade, Docker-free, pure-native on-device AI serving daemon and developer productivity platform designed specifically for Apple Silicon (M1/M2/M3/M4) Macs.
 
-It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple Metal GPU acceleration, a robust local routing proxy with automatic cloud-to-local circuit breaker failover, and a state-of-the-art **5-Lens Multi-Pass Code Review Engine** producing standalone interactive HTML dashboards.
+It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple Metal GPU acceleration, a robust local routing proxy with automatic cloud-to-local circuit breaker failover, and a state-of-the-art **6-Lens Multi-Pass Code Review Engine** producing standalone interactive HTML dashboards.
 
-[Key Features](#-key-platform-features) • [Review Demo & Samples](#-5-lens-review-in-action) • [How It Works](#-how-it-works) • [Architecture](ARCHITECTURE.md) • [Quick Start](#-quick-start) • [Repository Structure](#-repository-structure) • [Governance](GEMINI.md)
+[Key Features](#-key-platform-features) • [Review Demo & Samples](#-6-lens-review-in-action) • [How It Works](#-how-it-works) • [Architecture](ARCHITECTURE.md) • [Quick Start](#-quick-start) • [Repository Structure](#-repository-structure) • [Governance](GEMINI.md)
 
 </div>
 
@@ -36,7 +36,7 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 | 🔒 **100% Air-Gapped Data Privacy** | Zero outbound network transmission. Proprietary source code, system logs, environment secrets, and intellectual property never leave your local machine | Complies with strict enterprise security and data privacy mandates with complete peace of mind |
 | ⚡ **Zero-Docker Pure Metal Speed** | Bypasses slow Docker virtualization layers; runs directly on macOS, linking unified RAM directly to Apple Silicon (M1–M4) Metal GPU cores (`-DGGML_METAL=on`) | Zero-copy memory architecture and ultra-low latency token streaming right out of the box |
 | 🛡️ **Host RAM Protection & Self-Healing** | Pre-flight memory guard intercepts intensive inference when free RAM drops below 2.5 GB; auto-healing supervisor revives downed daemons in under 500ms via 150ms heartbeat pings | Eliminates macOS OOM freezes and provides an unyielding, resilient local circuit breaker |
-| 🔍 **5-Lens Quality Guard & Zero-Fake** | Analyzes code across Clean Code, Clean Architecture, Security, Performance, plus our specialized `AI Conduct` lens that flags **fake hardcoded mocks, hallucinated APIs, and silent exception swallowing** | Catches subtle AI-generated anti-patterns before they reach production, guaranteeing code integrity |
+| 🔍 **6-Lens Quality Guard & Zero-Fake** | Analyzes code across Clean Code, Clean Architecture, Security, Performance, AI Conduct, and **Resilience (Zombie handle prevention & lifecycle decoupling)** | Catches subtle AI-generated anti-patterns and mobile/IPC crash vectors before they reach production |
 
 ---
 
@@ -44,9 +44,9 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 
 | Component | Version | Architecture | Status | Primary Highlights |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.2.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Docker-Free Native Metal GPU, 150ms Auto-Healing Supervisor, Pre-flight Host Memory Guard, Zero-Drop Circuit Breaker |
-| 🔍 **Multi-Lens Review Engine** | `v0.2.0` | **5-Lens Strategy Pattern** | **Production Stable** | 5 Lenses (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`), Chain-of-Verification, Interactive Glassmorphism HTML Dashboard |
-| 🔌 **SkyBrain MCP Server** | `v0.2.0` | **Model Context Protocol** | **Production Stable** | Universal IDE integration (Cursor, VS Code, Antigravity, Claude Desktop) |
+| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Docker-Free Native Metal GPU, 150ms Auto-Healing Supervisor, Pre-flight Host Memory Guard, Zero-Drop Circuit Breaker |
+| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lenses (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification, Interactive Glassmorphism HTML Dashboard |
+| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Universal IDE integration (Cursor, VS Code, Antigravity, Claude Desktop) |
 
 ---
 
@@ -67,13 +67,14 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 - **Sub-150ms Auto-Healing:** High-speed heartbeat ping before every request; if the daemon crashed or stopped, it revives in the background automatically in under 500ms.
 - **Atomic Process Cleaner:** Eliminates orphaned and zombie processes cleanly using atomic `SIGTERM` ➔ `SIGKILL` sequencing.
 
-### 🔍 5-Lens Multi-Pass Code Review Engine
-- **Blind Multi-Perspective Analysis:** Reviews source code across 5 independent architectural disciplines:
+### 🔍 6-Lens Multi-Pass Code Review Engine
+- **Blind Multi-Perspective Analysis:** Reviews source code across 6 independent architectural disciplines:
   1. 🧹 **Clean Code Lens:** Robert C. Martin principles, Single Responsibility (SRP), DRY, expressive naming.
   2. 🏛️ **Clean Architecture Lens:** Uncle Bob dependency rule, boundary isolation, Contract Facade pattern.
   3. 🛡️ **Security Lens:** OWASP Top 10, path traversal, injection vectors, unhandled exception leaks.
   4. ⚡ **Performance Lens:** Resource lifecycles (sockets/SSL), blocking I/O on hot paths, complexity.
-  5. 🤖 **AI Conduct Lens (New):** Detects subtle AI-generated anti-patterns: fake mock hardcoding, hallucinated APIs, silent exception swallowing (`except Exception: pass`), and unfinished stubs.
+  5. 🤖 **AI Conduct Lens:** Detects subtle AI-generated anti-patterns: fake mock hardcoding, hallucinated APIs, silent exception swallowing (`except Exception: pass`), and unfinished stubs.
+  6. 🔄 **Resilience & Lifecycle Lens (New):** Guards against IPC/Binder zombie handles (e.g. Error 11 DeadProxy), dangling background sessions, lack of transient retry backoff, and concurrent resource collisions.
 - **Chain-of-Verification (CoVe):** Every detected finding is cross-verified by an independent on-device verification pass to eliminate false positives.
 - **Tier-1 Content Hash Disk Cache:** Instant sub-second results for unchanged files using SHA-256 caching.
 
@@ -90,10 +91,11 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 
 ---
 
-## 🎭 5-Lens Review in Action
+## 🎭 6-Lens Review in Action
 
 | Lens | Detected Anti-Pattern | Severity | AI-Driven Fix & Suggestion |
 | :--- | :--- | :---: | :--- |
+| 🔄 **Resilience** | Dangling IPC/Binder handle retained after `onError` callback | 🚨 **CRITICAL** | Destroy handle immediately and re-instantiate fresh session on next request. |
 | 🤖 **AI Conduct** | Fake hardcoded mock return `return {"status": "ok"}` | 🚨 **CRITICAL** | Implement actual database query or raise explicit `NotImplementedError`. |
 | 🛡️ **Security** | `except Exception: pass` silently swallowing errors | 🔴 **HIGH** | Catch specific `(json.JSONDecodeError, OSError)` and log with `logger.warning()`. |
 | 🏛️ **Architecture** | Inner layer directly importing concrete models (`DIP violation`) | 🔴 **HIGH** | Apply **Contract Facade Pattern** in `base.py` and re-export abstractions. |
@@ -111,7 +113,7 @@ sequenceDiagram
     participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
     participant Guard as 🧠 4-Tier Hardware Diagnostic Guard
     participant Super as 🩺 Supervisor (Auto-Heal)
-    participant Engine as 🔍 ReviewEngine (5 Lenses)
+    participant Engine as 🔍 ReviewEngine (6 Lenses)
     participant Daemon as ⚡ On-Device Daemon (Metal SLM)
     participant Lead as 👑 Lead LLM (Gemini/Claude)
 
@@ -122,8 +124,8 @@ sequenceDiagram
     alt Daemon Down
         Super->>Super: Auto-heal daemon in background
     end
-    CLI->>Engine: Run 5-Lens Multi-Pass Review
-    loop For Each Lens (CleanCode, Architecture, Security, Performance, AIConduct)
+    CLI->>Engine: Run 6-Lens Multi-Pass Review
+    loop For Each Lens (CleanCode, Architecture, Security, Performance, AIConduct, Resilience)
         Engine->>Daemon: Query system prompt + code slice
         Daemon-->>Engine: Structured JSON findings
         Engine->>Daemon: Chain-of-Verification (Fact-check findings)
@@ -258,7 +260,7 @@ skybrain/
 │   ├── server/                 # FastAPI background daemon & supervisor
 │   │   ├── app.py              # OpenAI-compatible /v1 endpoints & memory telemetry
 │   │   └── supervisor.py       # Atomic process killer & sub-150ms auto-healing supervisor
-│   ├── review/                 # 5-Lens Multi-Pass Code Review Platform
+│   ├── review/                 # 6-Lens Multi-Pass Code Review Platform
 │   │   ├── models.py           # Pure domain models (Severity, Category, Finding, Report)
 │   │   ├── engine.py           # Multi-pass orchestrator with Rich Progress tracking
 │   │   ├── verification.py     # Chain-of-Verification (CoVe) fact-checker
@@ -269,7 +271,8 @@ skybrain/
 │   │       ├── clean_architecture.py # Dependency Inversion & layer boundary rules
 │   │       ├── security.py     # OWASP, path traversal & exception leakage rules
 │   │       ├── performance.py  # Resource lifecycle, memory leaks & blocking I/O
-│   │       └── ai_conduct.py   # AI anti-patterns: fake hardcoding, hallucination & stubs
+│   │       ├── ai_conduct.py   # AI anti-patterns: fake hardcoding, hallucination & stubs
+│   │       └── resilience.py   # Lifecycle decoupling & zombie handle prevention
 │   └── mcp/                    # Model Context Protocol server for IDEs
 │
 └── tests/                      # 111 comprehensive pytest test suites (100% passing)
@@ -293,4 +296,4 @@ skybrain/
 - **License:** Apache License 2.0
 - **Organization:** [cobuild-ai](https://github.com/cobuild-ai)
 - **Maintainer:** `smilelife` (<mysmilelife@gmail.com>)
-- **Public Support:** <deartalkai.dev@gmail.com>
+- **Public Support:** <onthelogic@gmail.com>

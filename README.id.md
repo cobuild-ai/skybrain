@@ -12,14 +12,14 @@
 [![Inference: Metal GPU](https://img.shields.io/badge/Inference-Apple%20Metal%20GPU%20(Zero--Docker)-blueviolet)](#-akselerasi-metal-gpu-native-tanpa-docker)
 [![API: OpenAI Compatible](https://img.shields.io/badge/API-Kompatibel%20OpenAI%20v1-412991?logo=openai&logoColor=white)](#-rest-api-lokal-kompatibel-openai)
 [![Package: uv tool](https://img.shields.io/badge/Package-uv%20tool%20(Rust)-FF4088?logo=python&logoColor=white)](#-panduan-cepat-quick-start)
-[![Review: 5--Lens Engine](https://img.shields.io/badge/Code%20Review-Multi--Pass%205--Lensa-success)](#-engine-peninjau-kode-multi-pass-5-lensa)
+[![Review: 6--Lens Engine](https://img.shields.io/badge/Code%20Review-Multi--Pass%206--Lensa-success)](#-engine-peninjau-kode-multi-pass-6-lensa)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 **SkyBrain** adalah daemon penyedia AI on-device native kelas enterprise tanpa Docker yang dirancang khusus untuk komputer Mac Apple Silicon (M1/M2/M3/M4).
 
-Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlatensi nol dengan akselerasi Apple Metal GPU, proxy perutean lokal dengan circuit breaker otomatis saat terjadi kuota habis (429) atau server sibuk (503), serta **Engine Peninjau Kode Multi-Pass 5-Lensa** canggih yang menghasilkan dashboard HTML interaktif mandiri.
+Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlatensi nol dengan akselerasi Apple Metal GPU, proxy perutean lokal dengan circuit breaker otomatis saat terjadi kuota habis (429) atau server sibuk (503), serta **Engine Peninjau Kode Multi-Pass 6-Lensa** canggih yang menghasilkan dashboard HTML interaktif mandiri.
 
-[Fitur Utama](#-fitur-utama-platform) • [Contoh Peninjauan 5-Lensa](#-contoh-peninjauan-5-lensa-dalam-praktik) • [Cara Kerja](#-cara-kerja) • [Arsitektur](ARCHITECTURE.md) • [Panduan Cepat](#-panduan-cepat-quick-start) • [Struktur Repositori](#-struktur-repositori) • [Tata Kelola](GEMINI.md)
+[Fitur Utama](#-fitur-utama-platform) • [Contoh Peninjauan 6-Lensa](#-contoh-peninjauan-6-lensa-dalam-praktik) • [Cara Kerja](#-cara-kerja) • [Arsitektur](ARCHITECTURE.md) • [Panduan Cepat](#-panduan-cepat-quick-start) • [Struktur Repositori](#-struktur-repositori) • [Tata Kelola](GEMINI.md)
 
 </div>
 
@@ -36,7 +36,7 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 | 🔒 **100% Privasi Data Air-Gapped** | Tanpa transmisi jaringan keluar (Zero Outbound). Kode sumber kepemilikan, log sistem, kunci rahasia lingkungan, dan IP tidak pernah meninggalkan komputer lokal | Memenuhi standar kepatuhan dan keamanan enterprise yang ketat tanpa rasa cemas |
 | ⚡ **Kecepatan Murni Metal Tanpa Docker** | Melewati beban virtualisasi Docker; berjalan langsung di macOS, menghubungkan RAM terpadu ke inti Metal GPU Apple Silicon (M1–M4) (`-DGGML_METAL=on`) | Arsitektur zero-copy memori dan streaming token latensi ultra-rendah langsung saat digunakan |
 | 🛡️ **Proteksi RAM Host & Pemulihan Mandiri** | Pelindung memori pre-flight mencegat inferensi berat saat RAM bebas di bawah 2.5 GB; supervisor pemulihan mandiri menghidupkan daemon mati di bawah 500ms via ping 150ms | Menghilangkan freeze OOM macOS dan menyediakan circuit breaker lokal yang sangat tangguh |
-| 🔍 **Pemeriksaan Kualitas 5-Lensa & Anti-Palsu** | Menganalisis kode pada Clean Code, Clean Architecture, Security, Performance, serta lensa khusus `AI Conduct` yang mendeteksi **mock hardcoded palsu, API halusinasi, dan penyembunyian exception** | Mencegah pola anti-AI halus lolos ke produksi, menjamin integritas kode tingkat enterprise |
+| 🔍 **Pemeriksaan Kualitas 6-Lensa & Anti-Palsu** | Menganalisis kode pada Clean Code, Clean Architecture, Security, Performance, AI Conduct, dan **Resilience (Pencegahan zombie handle & pemisahan siklus hidup)** | Mencegah pola anti-AI halus dan kegagalan crash IPC/mobile lolos ke produksi |
 
 ---
 
@@ -44,9 +44,9 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 
 | Komponen | Versi | Arsitektur | Status | Sorotan Utama |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.2.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Native Metal GPU tanpa Docker, Supervisor Pemulihan Otomatis 150ms, Pelindung Memori Host (Pre-flight RAM Guard), Circuit Breaker Tanpa Drop |
-| 🔍 **Multi-Lens Review Engine** | `v0.2.0` | **5-Lens Strategy Pattern** | **Production Stable** | 5 Lensa (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`), Verifikasi Fakta Chain-of-Verification, Dashboard HTML Glassmorphism Interaktif |
-| 🔌 **SkyBrain MCP Server** | `v0.2.0` | **Model Context Protocol** | **Production Stable** | Integrasi IDE universal (Cursor, VS Code, Antigravity IDE, Claude Desktop) |
+| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Native Metal GPU tanpa Docker, Supervisor Pemulihan Otomatis 150ms, Pelindung Memori Host (Pre-flight RAM Guard), Circuit Breaker Tanpa Drop |
+| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lensa (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Verifikasi Fakta Chain-of-Verification, Dashboard HTML Glassmorphism Interaktif |
+| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Integrasi IDE universal (Cursor, VS Code, Antigravity IDE, Claude Desktop) |
 
 ---
 
@@ -67,13 +67,14 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 - **Pemulihan Otomatis di Bawah 150ms:** Pemeriksaan ping kilat sebelum setiap permintaan; jika daemon berhenti, sistem akan menghidupkannya kembali di latar belakang dalam waktu kurang dari 500ms.
 - **Pembersih Proses Atomik:** Menghapus proses yatim dan zombie secara tuntas menggunakan urutan atomik `SIGTERM` ➔ `SIGKILL`.
 
-### 🔍 Engine Peninjau Kode Multi-Pass 5-Lensa
-- **Analisis Multi-Perspektif Mandiri:** Memeriksa kode sumber dari 5 disiplin rekayasa perangkat lunak:
+### 🔍 Engine Peninjau Kode Multi-Pass 6-Lensa
+- **Analisis Multi-Perspektif Mandiri:** Memeriksa kode sumber dari 6 disiplin rekayasa perangkat lunak:
   1. 🧹 **Lensa Clean Code:** Prinsip Robert C. Martin, Tanggung Jawab Tunggal (SRP), DRY, penamaan ekspresif.
   2. 🏛️ **Lensa Clean Architecture:** Aturan ketergantungan Uncle Bob (DIP), isolasi batas, pola Contract Facade.
   3. 🛡️ **Lensa Keamanan (Security):** OWASP Top 10, path traversal, celah injeksi, kebocoran exception.
   4. ⚡ **Lensa Kinerja (Performance):** Daur hidup sumber daya (soket/SSL), I/O pemblokir, kompleksitas algoritma.
-  5. 🤖 **Lensa AI Conduct (Terbaru):** Mendeteksi anti-pola khas AI: hardcoding data tiruan, halusinasi API fiktif, pembungkaman exception (`except Exception: pass`), dan fungsi TODO yang belum selesai.
+  5. 🤖 **Lensa AI Conduct:** Mendeteksi anti-pola khas AI: hardcoding data tiruan, halusinasi API fiktif, pembungkaman exception (`except Exception: pass`), dan fungsi TODO yang belum selesai.
+  6. 🔄 **Lensa Ketahanan & Siklus Hidup (Resilience - Terbaru):** Melindungi dari zombie handle IPC/Binder (Error 11 DeadProxy), pelepasan sumber daya segera saat error, serta pengujian retry backoff otomatis saat koneksi terputus sesaat.
 - **Chain-of-Verification (CoVe):** Setiap temuan diverifikasi ulang oleh inferensi lokal mandiri untuk menyingkirkan alarm palsu (False Positive).
 - **Cache Disk Hash Konten Tier-1:** Memberikan hasil kilat dalam 0.1 detik untuk file yang tidak berubah menggunakan hashing SHA-256.
 
@@ -90,10 +91,11 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 
 ---
 
-## 🎭 Contoh Peninjauan 5-Lensa dalam Praktik
+## 🎭 6-Lensa Review dalam Praktik
 
 | Lensa | Anti-Pola yang Terdeteksi | Tingkat Keparahan | Saran Perbaikan AI |
 | :--- | :--- | :---: | :--- |
+| 🔄 **Resilience** | Handle IPC/Binder menggantung setelah `onError` callback | 🚨 **CRITICAL** | Hancurkan handle seketika dan inisialisasi sesi bersih baru pada permintaan berikutnya. |
 | 🤖 **AI Conduct** | Hardcoding nilai tiruan `return {"status": "ok"}` | 🚨 **CRITICAL** | Terapkan query database dinamis yang sebenarnya atau lempar `NotImplementedError` eksplisit. |
 | 🛡️ **Security** | `except Exception: pass` membungkam kegagalan | 🔴 **HIGH** | Tangkap exception spesifik `(json.JSONDecodeError, OSError)` dan catat dengan `logger.warning()`. |
 | 🏛️ **Architecture** | Lapisan dalam bergantung langsung pada model konkret (`pelanggaran DIP`) | 🔴 **HIGH** | Terapkan **Pola Contract Facade** di `base.py` dan ekspor kembali tipe abstraksi. |
@@ -111,7 +113,7 @@ sequenceDiagram
     participant CLI as 🖥️ SkyBrain CLI (`uv tool`) / MCP
     participant Guard as 🧠 Pelindung Diagnostik Perangkat Keras 4-Tier
     participant Super as 🩺 Supervisor (Auto-Heal)
-    participant Engine as 🔍 Engine Review (5 Lensa)
+    participant Engine as 🔍 Engine Review (6 Lensa)
     participant Daemon as ⚡ Daemon On-Device (Metal SLM)
     participant Lead as 👑 Lead LLM (Gemini/Claude)
 
@@ -122,8 +124,8 @@ sequenceDiagram
     alt Daemon Mati
         Super->>Super: Hidupkan kembali daemon di latar belakang
     end
-    CLI->>Engine: Jalankan Peninjauan Multi-Pass 5-Lensa
-    loop Untuk Setiap Lensa (CleanCode, Architecture, Security, Performance, AIConduct)
+    CLI->>Engine: Jalankan Peninjauan Multi-Pass 6-Lensa
+    loop Untuk Setiap Lensa (CleanCode, Architecture, Security, Performance, AIConduct, Resilience)
         Engine->>Daemon: Kirim prompt sistem + potongan kode
         Daemon-->>Engine: Kembalikan temuan JSON terstruktur
         Engine->>Daemon: Chain-of-Verification (Verifikasi fakta temuan)
@@ -258,7 +260,7 @@ skybrain/
 │   ├── server/                 # Daemon latar belakang FastAPI & supervisor
 │   │   ├── app.py              # Endpoint /v1 standar OpenAI & telemetri memori
 │   │   └── supervisor.py       # Pembersih proses atomik & supervisor pemulihan otomatis 150ms
-│   ├── review/                 # Platform Peninjau Kode Multi-Pass 5-Lensa
+│   ├── review/                 # Platform Peninjau Kode Multi-Pass 6-Lensa
 │   │   ├── models.py           # Model domain murni (Severity, Category, Finding, Report)
 │   │   ├── engine.py           # Orkestrator multi-pass dengan pelacakan Rich Progress
 │   │   ├── verification.py     # Verifikator fakta Chain-of-Verification (CoVe)
@@ -269,7 +271,8 @@ skybrain/
 │   │       ├── clean_architecture.py # Lensa pembalikan ketergantungan & batas lapisan
 │   │       ├── security.py     # Lensa keamanan OWASP, path traversal & exception
 │   │       ├── performance.py  # Lensa daur hidup sumber daya & efisiensi I/O
-│   │       └── ai_conduct.py   # Lensa audit anti-pola AI (hardcoding, halusinasi, stub)
+│   │       ├── ai_conduct.py   # Lensa audit anti-pola AI (hardcoding, halusinasi, stub)
+│   │       └── resilience.py   # Lensa siklus hidup & pencegahan zombie handle
 │   └── mcp/                    # Server Model Context Protocol untuk IDE
 │
 └── tests/                      # 111 rangkaian pengujian pytest (100% lulus)
@@ -293,4 +296,4 @@ skybrain/
 - **License:** Apache License 2.0
 - **Organization:** [cobuild-ai](https://github.com/cobuild-ai)
 - **Maintainer:** `smilelife` (<mysmilelife@gmail.com>)
-- **Public Support:** <deartalkai.dev@gmail.com>
+- **Public Support:** <onthelogic@gmail.com>
