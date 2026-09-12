@@ -31,6 +31,7 @@ class Category(str, enum.Enum):
     SECURITY = "security"
     PERFORMANCE = "performance"
     AI_CONDUCT = "ai_conduct"
+    RESILIENCE = "resilience"
 
 
 @dataclass(frozen=True)

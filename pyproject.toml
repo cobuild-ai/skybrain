@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "SmileLife", email = "developer@skybrain.ai" }
+    { name = "SmileLife", email = "onthelogic@gmail.com" }
 ]
 keywords = ["llm", "slm", "llama.cpp", "metal", "openai-api", "serving-daemon", "gemma4"]
 classifiers = [
