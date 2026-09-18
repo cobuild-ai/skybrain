@@ -44,9 +44,10 @@ Apple Metal GPU 가속 기반의 초저지연 경량 SLM(Qwen, Gemma, Llama) 로
 
 | 컴포넌트 | 버전 | 아키텍처 | 상태 | 주요 핵심 특징 |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | 도커 없는 네이티브 Metal GPU 가속, 150ms 자율 복구 슈퍼바이저, 호스트 메모리 보호 가드(Pre-flight Memory Guard), 무중단 서킷 브레이커 |
-| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6대 전문 렌즈(`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification 팩트 검증, 인터랙티브 글래스모피즘 HTML 대시보드 |
-| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Cursor, VS Code, Antigravity IDE, Claude Desktop 전 도구 표준 연동 |
+| 🧠 **SkyBrain Core & Daemon** | `v0.4.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Gemma 4 E4B 단일 표준, 도커 없는 네이티브 Metal GPU 가속, 150ms 자율 복구 슈퍼바이저, 호스트 메모리 가드 |
+| ⚡ **Token-Saving Suite** | `v0.4.0` | **CLI 자동화 도구** | **Production Stable** | `journal-gen`, `commit-msg`, `inspect`, `test-gen` (클라우드 LLM 토큰 대량 절감) |
+| 🔍 **Multi-Lens Review Engine** | `v0.4.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6대 전문 렌즈(`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification 팩트 검증 |
+| 🔌 **SkyBrain MCP Server** | `v0.4.0` | **Model Context Protocol** | **Production Stable** | Cursor, VS Code, Antigravity IDE, Claude Desktop 전 도구 표준 연동 |
 
 ---
 
