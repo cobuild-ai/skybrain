@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skybrain"
-version = "0.3.0"
+version = "0.4.0"
 description = "Universal On-Device AI Serving Daemon & Model Hub with Apple Silicon Metal GPU Acceleration"
 readme = "README.md"
 requires-python = ">=3.10"

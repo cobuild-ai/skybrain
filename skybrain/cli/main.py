@@ -1,5 +1,6 @@
 import typer
 from typing import Optional
+from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn, TimeRemainingColumn
@@ -731,7 +732,175 @@ def doc_search(
         console.print(f"   {snippet}")
 
 
+def _find_script(script_name: str) -> Path:
+    # 1. Check parent hierarchies up to workspace root
+    cur = Path(__file__).resolve()
+    for parent in cur.parents:
+        cand = parent / "scripts" / script_name
+        if cand.exists():
+            return cand
+    # 2. Check current working directory
+    cand_cwd = Path.cwd() / "scripts" / script_name
+    if cand_cwd.exists():
+        return cand_cwd
+    return Path(__file__).resolve().parents[3] / "scripts" / script_name
+
+
+@app.command(name="triage")
+def triage_log(
+    logfile: Optional[str] = typer.Argument(None, help="Path to error log file (reads stdin if omitted)"),
+    auto_start: bool = typer.Option(True, "--auto-start/--no-auto-start", help="Auto start SkyBrain daemon if stopped"),
+):
+    """Diagnoses build/test failure logs using on-device Qwen 3.8 SLM (Noise reduction + 3-line actionable fix)."""
+    import sys
+    import subprocess
+
+    script_path = _find_script("skybrain_triage_log.py")
+    if not script_path.exists():
+        console.print(f"[bold red]❌ Helper script not found: skybrain_triage_log.py[/bold red]")
+        raise typer.Exit(1)
+
+    stdin_data = None
+    if not logfile and not sys.stdin.isatty():
+        stdin_data = sys.stdin.read()
+
+    cmd = [sys.executable, str(script_path)]
+    if logfile:
+        cmd.append(logfile)
+
+    proc = subprocess.run(cmd, input=stdin_data, text=True if stdin_data is not None else False)
+    raise typer.Exit(proc.returncode)
+
+
+@app.command(name="readme-sync")
+def readme_sync(
+    dir: str = typer.Option(".", "--dir", "-d", help="Target project directory to audit (default: .)"),
+    check: bool = typer.Option(False, "--check", "-c", help="Run audit check only (exits with code 1 if unsynced)"),
+    sync: bool = typer.Option(False, "--sync", "-s", help="Generate missing/updated drafts using SkyBrain"),
+):
+    """Audits tri-lingual README (EN/KO/ID) consistency and generates draft translations via on-device SLM."""
+    import sys
+    import subprocess
+
+    script_path = _find_script("sync_readme_trilingual.py")
+    if not script_path.exists():
+        console.print(f"[bold red]❌ Helper script not found: sync_readme_trilingual.py[/bold red]")
+        raise typer.Exit(1)
+
+    cmd = [sys.executable, str(script_path), "--dir", dir]
+    if check:
+        cmd.append("--check")
+    if sync:
+        cmd.append("--sync")
+
+    proc = subprocess.run(cmd)
+    raise typer.Exit(proc.returncode)
+
+
+@app.command(name="journal-gen")
+def journal_gen_cmd(
+    topic: str = typer.Argument(..., help="Main topic or summary of today's engineering work"),
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Journal date in YYYY-MM-DD (defaults to today)"),
+    save: bool = typer.Option(False, "--save", "-s", help="Save directly to Journal/<YYYY>/<YYYY-MM-DD>.md"),
+    notes: Optional[str] = typer.Option("", "--notes", "-n", help="Extra developer notes or findings"),
+    no_slm: bool = typer.Option(False, "--no-slm", help="Bypass local SLM and use fast rule-based template"),
+):
+    """Generates an Obsidian-compliant engineering daily journal entry via local SLM."""
+    import datetime
+    from pathlib import Path
+    from skybrain.journal.generator import generate_daily_journal, collect_git_summary
+
+    target_date = date or datetime.date.today().isoformat()
+    git_context = collect_git_summary()
+
+    with console.status("[bold cyan]Generating Daily Journal via SkyBrain...[/bold cyan]"):
+        journal_md = generate_daily_journal(
+            date_str=target_date,
+            topic=topic,
+            git_context=git_context,
+            extra_notes=notes or "",
+            use_slm=not no_slm
+        )
+
+    if save:
+        year = target_date.split("-")[0]
+        out_dir = Path("Journal") / year
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_file = out_dir / f"{target_date}.md"
+        out_file.write_text(journal_md, encoding="utf-8")
+        console.print(f"[bold green]✅ Journal successfully saved to: {out_file}[/bold green]")
+    else:
+        console.print(journal_md)
+
+
+@app.command(name="commit-msg")
+def commit_msg_cmd(
+    hint: Optional[str] = typer.Option("", "--hint", "-h", help="Optional focus hint for commit"),
+    no_slm: bool = typer.Option(False, "--no-slm", help="Bypass local SLM and use fast rule-based generator"),
+):
+    """Generates Conventional Commit message and 4-Line executive briefing from staged diff."""
+    import sys
+    import subprocess
+    from skybrain.cli.commit_helper import generate_commit_and_briefing
+
+    diff_text = ""
+    if not sys.stdin.isatty():
+        diff_text = sys.stdin.read()
+    else:
+        res = subprocess.run(["git", "diff", "--staged"], capture_output=True, text=True)
+        diff_text = res.stdout
+
+    if not diff_text.strip():
+        console.print("[yellow]⚠️ No staged git changes found (git diff --staged is empty).[/yellow]")
+        return
+
+    with console.status("[bold cyan]Analyzing diff and drafting commit message via SkyBrain...[/bold cyan]"):
+        res = generate_commit_and_briefing(diff_text=diff_text, focus_hint=hint or "", use_slm=not no_slm)
+
+    console.print("\n[bold cyan]📦 Conventional Commit Message Draft:[/bold cyan]")
+    console.print(f"[green]{res['commit_msg']}[/green]")
+    console.print("\n[bold cyan]🏛️ Enterprise 4-Line Executive Briefing:[/bold cyan]")
+    console.print(f"[yellow]{res['briefing']}[/yellow]\n")
+
+
+@app.command(name="inspect")
+def inspect_cmd(
+    file: str = typer.Argument(..., help="Path to source file to inspect"),
+    no_slm: bool = typer.Option(False, "--no-slm", help="Bypass local SLM architecture summary"),
+):
+    """Extracts ultra-compact code skeleton and architecture summary to save cloud tokens."""
+    from pathlib import Path
+    from skybrain.cli.inspect_helper import inspect_file
+
+    target_path = Path(file)
+    with console.status(f"[bold cyan]Inspecting {target_path.name} via SkyBrain...[/bold cyan]"):
+        output = inspect_file(file_path=target_path, use_slm=not no_slm)
+
+    console.print(f"\n{output}\n")
+
+
+@app.command(name="test-gen")
+def test_gen_cmd(
+    file: str = typer.Argument(..., help="Path to target source file"),
+    symbol: Optional[str] = typer.Option(None, "--symbol", "-s", help="Target function or class name"),
+    no_slm: bool = typer.Option(False, "--no-slm", help="Bypass local SLM and use fast fallback"),
+):
+    """Generates unit test scaffold (JUnit / pytest) via on-device SLM."""
+    from pathlib import Path
+    from skybrain.cli.testgen_helper import generate_test_scaffold
+
+    target_path = Path(file)
+    with console.status(f"[bold cyan]Generating test scaffold for {target_path.name} via SkyBrain...[/bold cyan]"):
+        scaffold = generate_test_scaffold(source_path=target_path, target_symbol=symbol, use_slm=not no_slm)
+
+    console.print("\n[bold green]🧪 Generated Unit Test Scaffold:[/bold green]\n")
+    console.print(scaffold)
+    console.print()
+
+
 if __name__ == "__main__":
     app()
+
+
 
 

@@ -44,9 +44,10 @@ It provides zero-latency SLM/LLM local serving (Qwen, Gemma, Llama) with Apple M
 
 | Component | Version | Architecture | Status | Primary Highlights |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Docker-Free Native Metal GPU, 150ms Auto-Healing Supervisor, Pre-flight Host Memory Guard, Zero-Drop Circuit Breaker |
-| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lenses (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification, Interactive Glassmorphism HTML Dashboard |
-| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Universal IDE integration (Cursor, VS Code, Antigravity, Claude Desktop) |
+| 🧠 **SkyBrain Core & Daemon** | `v0.4.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Gemma 4 E4B Default, Docker-Free Native Metal GPU, 150ms Auto-Healing Supervisor, Pre-flight Host Memory Guard |
+| ⚡ **Token-Saving Suite** | `v0.4.0` | **CLI Automation** | **Production Stable** | `journal-gen`, `commit-msg`, `inspect`, `test-gen` (Massive Cloud Token Offloading) |
+| 🔍 **Multi-Lens Review Engine** | `v0.4.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lenses (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification |
+| 🔌 **SkyBrain MCP Server** | `v0.4.0` | **Model Context Protocol** | **Production Stable** | Universal IDE integration (Cursor, VS Code, Antigravity, Claude Desktop) |
 
 ---
 
