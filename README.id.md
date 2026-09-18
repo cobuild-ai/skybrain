@@ -44,9 +44,10 @@ Menyediakan serving model bahasa kecil (SLM seperti Qwen, Gemma, Llama) berlaten
 
 | Komponen | Versi | Arsitektur | Status | Sorotan Utama |
 | :--- | :---: | :---: | :---: | :--- |
-| 🧠 **SkyBrain Core & Daemon** | `v0.3.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Native Metal GPU tanpa Docker, Supervisor Pemulihan Otomatis 150ms, Pelindung Memori Host (Pre-flight RAM Guard), Circuit Breaker Tanpa Drop |
-| 🔍 **Multi-Lens Review Engine** | `v0.3.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lensa (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Verifikasi Fakta Chain-of-Verification, Dashboard HTML Glassmorphism Interaktif |
-| 🔌 **SkyBrain MCP Server** | `v0.3.0` | **Model Context Protocol** | **Production Stable** | Integrasi IDE universal (Cursor, VS Code, Antigravity IDE, Claude Desktop) |
+| 🧠 **SkyBrain Core & Daemon** | `v0.4.0` | **macOS Apple Silicon (Metal)** | **Production Stable** | Standar Gemma 4 E4B, Native Metal GPU tanpa Docker, Supervisor Pemulihan Otomatis 150ms, Pelindung Memori Host |
+| ⚡ **Token-Saving Suite** | `v0.4.0` | **Otomatisasi CLI** | **Production Stable** | `journal-gen`, `commit-msg`, `inspect`, `test-gen` (Penghematan Besar Token Cloud) |
+| 🔍 **Multi-Lens Review Engine** | `v0.4.0` | **6-Lens Strategy Pattern** | **Production Stable** | 6 Lensa (`CleanCode`, `Architecture`, `Security`, `Performance`, `AIConduct`, `Resilience`), Chain-of-Verification |
+| 🔌 **SkyBrain MCP Server** | `v0.4.0` | **Model Context Protocol** | **Production Stable** | Integrasi IDE universal (Cursor, VS Code, Antigravity IDE, Claude Desktop) |
 
 ---
 

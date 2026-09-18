@@ -10,32 +10,14 @@ from skybrain.core.config import settings
 logger = logging.getLogger("skybrain.catalog")
 
 MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
-    "qwen3.8": {
-        "name": "Qwen 3.8 4B Instruct",
-        "filename": "Qwen3.8-4B-Q4_K_M.gguf",
-        "url": "https://huggingface.co/empero-ai/Qwen3.8-4B-GGUF/resolve/main/Qwen3.8-4B-Q4_K_M.gguf",
-        "description": "Alibaba Qwen 3.8 4B (Thinking Mode, Ultra-Fast M1 Optimized, ~2.65GB)",
-        "context_length": 32768,
-        "is_vision": False,
-        "default": True,
-    },
-    "qwen3.8-9b": {
-        "name": "Qwen 3.8 9B Distill Instruct",
-        "filename": "Qwen3.8-9B-Q4_K_M.gguf",
-        "url": "https://huggingface.co/empero-ai/Qwen3.8-9B-Distill-GGUF/resolve/main/Qwen3.8-9B-Q4_K_M.gguf",
-        "description": "Alibaba Qwen 3.8 9B Distill (Advanced Reasoning & Deep Logic, ~5.51GB)",
-        "context_length": 32768,
-        "is_vision": False,
-        "default": False,
-    },
     "gemma-4-e4b": {
         "name": "Gemma 4 E4B Instruct",
         "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
         "url": "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
-        "description": "Google Gemma 4 E4B (128k Context, Thinking Mode, Native System Role, ~4.7GB)",
+        "description": "Google Gemma 4 E4B (128k Context, Ultra-Clean Direct Instruction, Native System Role, ~4.7GB)",
         "context_length": 131072,
         "is_vision": False,
-        "default": False,
+        "default": True,
     },
     "gemma-2-2b": {
         "name": "Gemma 2 2B Instruct",
@@ -45,10 +27,28 @@ MODEL_PRESETS: Dict[str, Dict[str, Any]] = {
         "context_length": 8192,
         "is_vision": False,
         "default": False,
+    },
+    "qwen3.8": {
+        "name": "Qwen 3.8 4B Instruct",
+        "filename": "Qwen3.8-4B-Q4_K_M.gguf",
+        "url": "https://huggingface.co/empero-ai/Qwen3.8-4B-GGUF/resolve/main/Qwen3.8-4B-Q4_K_M.gguf",
+        "description": "Alibaba Qwen 3.8 4B (Thinking Mode, M1 Optimized, ~2.65GB)",
+        "context_length": 32768,
+        "is_vision": False,
+        "default": False,
+    },
+    "qwen3.8-9b": {
+        "name": "Qwen 3.8 9B Distill Instruct",
+        "filename": "Qwen3.8-9B-Q4_K_M.gguf",
+        "url": "https://huggingface.co/empero-ai/Qwen3.8-9B-Distill-GGUF/resolve/main/Qwen3.8-9B-Q4_K_M.gguf",
+        "description": "Alibaba Qwen 3.8 9B Distill (Advanced Reasoning & Deep Logic, ~5.51GB)",
+        "context_length": 32768,
+        "is_vision": False,
+        "default": False,
     }
 }
 
-DEFAULT_PRESET_KEY = "qwen3.8"
+DEFAULT_PRESET_KEY = "gemma-4-e4b"
 MIN_VALID_MODEL_SIZE = 100 * 1024 * 1024  # 100MB
 
 
@@ -73,8 +73,8 @@ class ModelCatalog:
             except Exception:
                 pass
         
-        # Check installed models
-        for key in [DEFAULT_PRESET_KEY, "gemma-2-2b"]:
+        # Check installed models with Gemma priority
+        for key in [DEFAULT_PRESET_KEY, "gemma-2-2b", "qwen3.8"]:
             if self.is_installed(key):
                 return key
 
