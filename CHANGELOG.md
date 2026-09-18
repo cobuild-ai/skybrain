@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-09-19
+
+### 🚀 Added
+- **Token-Saving Automation Suite**:
+  - `skybrain journal-gen`: Generates Obsidian-compatible daily journals with Git context, 3 key sections, and Obsidian wikilinks.
+  - `skybrain commit-msg`: Generates conventional commit messages and 4-line executive briefings from Git diffs.
+  - `skybrain inspect`: Extracts compact syntax skeletons from Kotlin/Python source files to drastically reduce cloud LLM prompt tokens.
+  - `skybrain test-gen`: Automatically creates unit test scaffolds (`JUnit 4` / `pytest`) from source files.
+- **Universal Gemma 4 E4B Standardization**:
+  - Standardized default SLM preset to Google **Gemma 4 E4B Instruct** (`DEFAULT_PRESET_KEY = "gemma-4-e4b"`).
+  - Configured 128k context window and full Apple Silicon Metal GPU layer offloading (`n_gpu_layers=-1`).
+  - Added low-RAM pre-flight guard and comprehensive system environment/memory diagnostic endpoints (`/v1/system/environment`, `/v1/system/memory`).
+
+---
+
 ## [0.3.0] - 2026-09-08
 
 ### 🚀 Added

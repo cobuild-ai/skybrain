@@ -19,7 +19,7 @@ _no_proxy_lock = threading.Lock()
 
 class SkyBrainSettings(BaseSettings):
     app_name: str = "SkyBrain"
-    version: str = "0.2.0"
+    version: str = "0.4.0"
     
     # Storage & Cache
     home_dir: Path = Field(default_factory=lambda: Path.home() / ".skybrain")

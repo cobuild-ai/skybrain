@@ -33,7 +33,10 @@ class TestModelIntegrationDiagnostics:
             total_vram_gb=8.0,
             free_vram_gb=1.0,
         )
-        assessment = HardwareAutoTuner.assess_environment(model_key="qwen3.8", hw=hw_low)
-        assert assessment.tier == EnvironmentTier.INCOMPATIBLE
-        assert assessment.allowed is False
-        assert "동작 불가" in assessment.title
+        # Verify both gemma-4-e4b (new default) and legacy qwen3.8 are blocked
+        for key in ["gemma-4-e4b", "qwen3.8"]:
+            assessment = HardwareAutoTuner.assess_environment(model_key=key, hw=hw_low)
+            assert assessment.tier == EnvironmentTier.INCOMPATIBLE
+            assert assessment.allowed is False
+            assert "동작 불가" in assessment.title
+
