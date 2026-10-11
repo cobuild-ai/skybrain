@@ -296,5 +296,5 @@ skybrain/
 
 - **License:** Apache License 2.0
 - **Organization:** [cobuild-ai](https://github.com/cobuild-ai)
-- **Maintainer:** `smilelife` (<redacted@example.invalid>)
-- **Public Support:** <redacted@example.invalid>
+- **Maintainer:** `smilelife`
+- **Support:** [GitHub Issues](https://github.com/cobuild-ai/skybrain/issues)
